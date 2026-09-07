@@ -31,8 +31,8 @@ https://dash.cloudflare.com/sign-up → подтверди почту. Карт�
 ## 2. База данных (Cloudflare, браузер)
 
 1. dash.cloudflare.com → слева **Storage & Databases** → **D1 SQL Database** → **Create**.
-2. Имя: `me-db` → **Create**.
-3. Открой `me-db` → вкладка **Console**.
+2. Имя: `me` → **Create**.
+3. Открой `me` → вкладка **Console**.
 4. Открой файл `worker/schema.sql`, скопируй всё содержимое, вставь в консоль → **Execute**.
    Должно быть «Success».
 
@@ -62,7 +62,7 @@ https://dash.cloudflare.com/sign-up → подтверди почту. Карт�
 ### 3.2 Привязка базы
 **Settings** → **Bindings** → **Add** → **D1 database**:
 - Variable name: `DB`
-- D1 database: `me-db`
+- D1 database: `me`
 → **Deploy**.
 
 ---
