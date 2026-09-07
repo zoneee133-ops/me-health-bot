@@ -1,5 +1,5 @@
-# локальная разработка: cp .dev.vars.example .dev.vars и заполни
-# затем: wrangler dev
+# локальная разработка через терминал: cp .dev.vars.example .dev.vars, заполни, wrangler dev
 BOT_TOKEN=
-GEMINI_API_KEY=
+OPENROUTER_KEY=
 SETUP_SECRET=dev
+WEBAPP_URL=http://localhost:8788

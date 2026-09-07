@@ -1,22 +1,27 @@
 /**
  * Me — Telegram Mini App backend (Cloudflare Worker)
+ * ИИ: OpenRouter (бесплатные модели). Без Google, без терминала — всё в дашборде Cloudflare.
  *
- *   POST /api/llm       { initData, content, maxTokens }   -> универсальный ИИ-прокси на Gemini
- *                        content: строка ИЛИ массив [{type:"text",text}|{type:"image",source:{media_type,data}}]
- *   POST /api/save      { initData, analysis, source }      -> сохранить разбор в D1 + пуш в бот, вернуть { id }
+ *   POST /api/llm       { initData, content, maxTokens }   -> ИИ-прокси на OpenRouter
+ *                        content: строка ИЛИ [{type:"text",text}|{type:"image",source:{media_type,data}}]
+ *   POST /api/save      { initData, analysis, source }      -> сохранить разбор в D1 + пуш в бот -> { id }
  *   GET  /api/analyses?initData=...                         -> список разборов пользователя
  *   GET  /api/analysis?id=...&initData=...                  -> один разбор
  *   POST /webhook       (Telegram update)                   -> /start, /help
- *   GET  /setup?secret=SETUP_SECRET                         -> один раз: вебхук, команды, описания, кнопка-меню
+ *   GET  /setup?secret=SETUP_SECRET                         -> вебхук, команды, описания, кнопка-меню
  *
- * Secrets:  BOT_TOKEN, GEMINI_API_KEY, SETUP_SECRET
- * Vars:     WEBAPP_URL
- * Bindings: DB (D1)
+ * Vars / Secrets (Settings -> Variables в дашборде воркера):
+ *   BOT_TOKEN         (secret)  — токен бота из @BotFather
+ *   OPENROUTER_KEY    (secret)  — ключ с openrouter.ai
+ *   SETUP_SECRET      (secret)  — любая строка, напр. me8fk29
+ *   WEBAPP_URL        (plain)   — https-адрес Mini App (Cloudflare Pages)
+ *   OPENROUTER_MODEL  (plain, необязательно) — по умолчанию бесплатная vision-модель
+ * Bindings:
+ *   DB  — D1 database (Settings -> Bindings)
  */
 
-const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_URL = (key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+const DEFAULT_MODEL = "qwen/qwen2.5-vl-72b-instruct:free";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export default {
   async fetch(request, env, ctx) {
@@ -66,33 +71,43 @@ async function hmac(keyBytes, msgBytes) {
   return crypto.subtle.sign("HMAC", key, msgBytes);
 }
 
-/* ---------------- Gemini proxy ---------------- */
+/* ---------------- OpenRouter proxy ---------------- */
 
 async function apiLlm(request, env) {
-  const { initData, content } = await request.json();
+  const { initData, content, maxTokens } = await request.json();
   await verifyInitData(initData, env.BOT_TOKEN);
 
   const parts = [];
   if (typeof content === "string") {
-    parts.push({ text: content });
+    parts.push({ type: "text", text: content });
   } else if (Array.isArray(content)) {
     for (const c of content) {
-      if (c && c.type === "text") parts.push({ text: c.text });
+      if (c && c.type === "text") parts.push({ type: "text", text: c.text });
       else if (c && c.type === "image" && c.source)
-        parts.push({ inline_data: { mime_type: c.source.media_type || "image/jpeg", data: c.source.data } });
+        parts.push({ type: "image_url", image_url: { url: `data:${c.source.media_type || "image/jpeg"};base64,${c.source.data}` } });
     }
   }
   if (!parts.length) throw new Error("empty content");
 
-  const r = await fetch(GEMINI_URL(env.GEMINI_API_KEY), {
+  const r = await fetch(OPENROUTER_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0.3, maxOutputTokens: 2048 } }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${env.OPENROUTER_KEY}`,
+      "HTTP-Referer": env.WEBAPP_URL || "https://t.me",
+      "X-Title": "Me Health",
+    },
+    body: JSON.stringify({
+      model: env.OPENROUTER_MODEL || DEFAULT_MODEL,
+      messages: [{ role: "user", content: parts }],
+      max_tokens: maxTokens || 2000,
+      temperature: 0.3,
+    }),
   });
   const d = await r.json();
-  if (!r.ok) throw new Error("gemini: " + JSON.stringify(d).slice(0, 300));
-  const text = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
-  return { text };
+  if (!r.ok) throw new Error("openrouter: " + JSON.stringify(d).slice(0, 300));
+  const text = d?.choices?.[0]?.message?.content || "";
+  return { text: typeof text === "string" ? text : (text.map?.((p) => p.text).join("") || "") };
 }
 
 /* ---------------- persistence + push ---------------- */
@@ -101,10 +116,9 @@ async function apiSave(request, env, ctx) {
   const { initData, analysis, source } = await request.json();
   const user = await verifyInitData(initData, env.BOT_TOKEN);
   const id = crypto.randomUUID();
-  const created = Date.now();
   await env.DB.prepare(
     "INSERT INTO analyses (id, user_id, created_at, source, status, data) VALUES (?,?,?,?,?,?)"
-  ).bind(id, user.id, created, source || "upload", "done", JSON.stringify(analysis || {})).run();
+  ).bind(id, user.id, Date.now(), source || "upload", "done", JSON.stringify(analysis || {})).run();
 
   const attn = (analysis?.markers || []).filter((m) => m.flag && m.flag !== "normal").length;
   const crit = (analysis?.critical || []).length;

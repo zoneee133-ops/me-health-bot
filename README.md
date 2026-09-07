@@ -11,7 +11,7 @@
 | путь | что |
 |---|---|
 | `webapp/index.html` | Telegram Mini App (фронтенд, весь UI) |
-| `worker/` | Cloudflare Worker: ИИ-прокси на Gemini, БД D1, вебхук бота, пуши |
+| `worker/` | Cloudflare Worker: ИИ-прокси на OpenRouter, БД D1, вебхук бота, пуши |
 | `Me_MVP_v6.html` | исходный дизайн-прототип (референс, не деплоится) |
 | `design/` | демо отдельных элементов |
 | `SETUP.md` | пошаговый запуск в Telegram |

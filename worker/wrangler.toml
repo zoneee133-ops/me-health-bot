@@ -1,18 +1,20 @@
+# Нужен только если деплоишь через терминал (wrangler).
+# По инструкции SETUP.md всё делается в дашборде — этот файл можно игнорировать.
+
 name = "me-backend"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
-# после `wrangler d1 create me-db` вставь сюда database_id из вывода:
 [[d1_databases]]
 binding = "DB"
 database_name = "me-db"
 database_id = "PASTE_D1_DATABASE_ID_HERE"
 
 [vars]
-# https-адрес Mini App (Cloudflare Pages). Заполни после деплоя фронта.
 WEBAPP_URL = "https://me-webapp.pages.dev"
+# OPENROUTER_MODEL = "qwen/qwen2.5-vl-72b-instruct:free"   # необязательно
 
-# Секреты (НЕ сюда, а командами):
+# Секреты — командами, НЕ сюда:
 #   wrangler secret put BOT_TOKEN
-#   wrangler secret put GEMINI_API_KEY
-#   wrangler secret put SETUP_SECRET      (придумай любую строку)
+#   wrangler secret put OPENROUTER_KEY
+#   wrangler secret put SETUP_SECRET
