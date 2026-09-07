@@ -1927,7 +1927,7 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
   try {
     const imgs = await fileToImageParts(file);
     const raw = await claudeMessage(imgs.concat([
-      { type:'text', text:'Это фото или скан результатов анализа крови/биохимии (печатный бланк, PDF или почерк, возможно несколько страниц). Распознай максимально точно все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"показатель по-русски","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"1-2 предложения простыми словами: что это за показатель и что значит именно это значение; если отклонение — на каком фоне так бывает, без диагнозов и паники"}],"summary":"2-3 предложения человеческим языком: общая картина, что повышено/понижено и на каком фоне, на что обратить внимание, без диагнозов"}\nНе выдумывай показатели, которых нет на изображении. Пиши понятно для пожилого человека. Только JSON.' }
+      { type:'text', text:'Это результаты анализа крови/биохимии (фото, скан, PDF или почерк, возможно несколько страниц). Распознай все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"короткое понятное название показателя","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"объяснение для человека без медицинского образования"}],"summary":"общий вывод по-человечески"}\n\nОЧЕНЬ ВАЖНО — язык:\n- Пиши так, будто объясняешь другу или бабушке, которые НИЧЕГО не знают про медицину.\n- ЗАПРЕЩЕНО использовать медицинские термины и аббревиатуры (эритроциты, гематокрит, MCHC, MCV, СОЭ, ретикулоциты и т.п.) без объяснения. Если без термина никак — сразу простыми словами в скобках, что это.\n- В "name" давай короткое бытовое название (например: "Красные клетки крови", "Белые клетки крови", "Свёртывание крови", "Гемоглобин (белок, переносящий кислород)"). Не пиши длинные лабораторные формулировки и латинские буквы.\n- В "plain": 1-2 коротких предложения. Что этот показатель показывает + что означает именно это значение. Если отклонение — спокойно объясни, из-за чего так бывает в обычной жизни (питьё, спорт, еда, недосып). НИКАКОЙ паники, НИКАКИХ страшных слов, НЕ пугай, НЕ ставь диагноз.\n- "summary": 2-3 предложения. Спокойно: в целом всё нормально или на что глянуть с врачом. Без терминов.\nНе выдумывай показатели, которых нет на изображении. Только JSON.' }
     ]), 4000);
     const parsed = JSON.parse(stripFence(raw));
     if (!parsed.markers || !parsed.markers.length) throw new Error('no markers');
@@ -1951,14 +1951,16 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
 
 function isCriticalMarker(m){
   // Simple critical thresholds for demo safety alerts (not diagnoses)
-  const name = (m.name || '').toLowerCase();
+  // имя без скобок и уточнений: "Средняя концентрация гемоглобина (MCHC)" -> "средняя концентрация гемоглобина"
+  const name = (m.name || '').replace(/\(.*?\)/g, '').trim().toLowerCase();
   const raw = String(m.value || m.to || '').replace(',', '.').match(/[\d.]+/);
   const num = raw ? parseFloat(raw[0]) : NaN;
   if (isNaN(num)) return false;
-  if (name.includes('гемоглобин') && num < 70) return true;
-  if (name.includes('тромбоцит') && num < 20) return true;
-  if (name.includes('глюкоз') && num > 20) return true;
-  if (name.includes('калий') && (num < 2.5 || num > 6.5)) return true;
+  // только сам показатель, не производные индексы (MCH, MCHC, тромбокрит, PDW и т.п.)
+  if (name === 'гемоглобин' && num < 70) return true;
+  if ((name === 'тромбоциты' || name === 'тромбоцит') && num < 20) return true;
+  if (name === 'глюкоза' && num > 25) return true;
+  if (name === 'калий' && (num < 2.5 || num > 6.5)) return true;
   return false;
 }
 
@@ -1980,8 +1982,8 @@ function addBloodTest(parsed){
     if (isCriticalMarker(m)) {
       critical.push({ name:m.name, value:m.value || m.to, flag:m.flag || 'high' });
     }
-    if (m.flag === 'high' || m.flag === 'low') needsAttention.push({ name:m.name, from:'—', to:m.value, flag:m.flag });
-    else stable.push({ name:m.name, value:m.value });
+    if (m.flag === 'high' || m.flag === 'low') needsAttention.push({ name:m.name, from:'—', to:m.value, flag:m.flag, ref:m.ref || '' });
+    else stable.push({ name:m.name, value:m.value, ref:m.ref || '' });
   });
   const bt = {
     id:'bt'+Math.random().toString(36).slice(2,8),
@@ -2104,8 +2106,9 @@ function simpleExplain(name, value, flag, plain){
   return { what: what, statusText: statusText, norm: norm, full: full, flag: flag || 'normal' };
 }
 
-function buildMarkerBriefCard(name, value, flag, plain){
+function buildMarkerBriefCard(name, value, flag, plain, ref){
   var ex = simpleExplain(name, value, flag, plain);
+  if (ref) ex.norm = ref;   // норма с бланка приоритетнее словарной
   var isAtt = flag === 'high' || flag === 'low';
   var dotClass = flag === 'high' ? 'att' : (flag === 'low' ? 'warn' : 'ok');
   var valClass = flag === 'high' ? 'att' : (flag === 'low' ? 'warn' : 'ok');
@@ -2130,9 +2133,7 @@ function buildMarkerBriefCard(name, value, flag, plain){
 function openBloodResult(id){
   const bt = state.bloodTests.find(b => b.id === id);
   if (!bt) return;
-  // critical readings get their own alert view
-  if (bt.critical && bt.critical.length) { renderBloodStep1(bt); return; }
-  // otherwise: open straight into the plain-language breakdown
+  // open straight into the plain-language breakdown (критическое — баннером сверху, не тупик)
   if (bt.step === 3) { renderBloodStep3(bt); return; }
   renderBloodStep2(bt);
 }
@@ -2223,18 +2224,29 @@ function renderBloodStep2(bt){
   var body = document.getElementById('bloodResultBody');
   var pbn = bt.plainByName || {};
   var attentionBlocks = (bt.needsAttention || []).map(function(m){
-    return buildMarkerBriefCard(m.name, m.to, m.flag, pbn[String(m.name).toLowerCase()]);
+    return buildMarkerBriefCard(m.name, m.to, m.flag, pbn[String(m.name).toLowerCase()], m.ref);
   }).join('');
 
   var stableBlocks = (bt.stable || []).map(function(m){
-    return buildMarkerBriefCard(m.name, m.value, 'normal', pbn[String(m.name).toLowerCase()]);
+    return buildMarkerBriefCard(m.name, m.value, 'normal', pbn[String(m.name).toLowerCase()], m.ref);
   }).join('');
 
   var summary = (typeof buildStep1Summary === 'function') ? buildStep1Summary(bt) : '';
 
+  var critBanner = '';
+  if (bt.critical && bt.critical.length) {
+    var cn = bt.critical.map(function(c){ return String(c.name).replace(/\s*\(.*$/, ''); }).join(', ');
+    critBanner =
+      '<div class="critical-alert" style="text-align:left; padding:14px 16px; margin-bottom:16px;">' +
+        '<p class="ca-title" style="text-align:left; margin-bottom:6px;">Стоит показать врачу</p>' +
+        '<p class="ca-text">Один показатель (' + cn + ') сильно отличается от нормы. Это не срочно, но покажите этот анализ врачу на ближайшем приёме. Ниже — разбор всех показателей простыми словами.</p>' +
+      '</div>';
+  }
+
   body.innerHTML =
     '<h1 class="title" style="margin-top:2px;">Анализ крови</h1>' +
     '<p class="subtitle" style="margin-bottom:12px;">' + bt.date + '</p>' +
+    critBanner +
     (summary ? '<div class="ai-summary" style="margin-top:0; margin-bottom:18px;"><div class="dot"></div><p>' + summary + '</p></div>' : '') +
     (bt.needsAttention.length ? '<p class="section-label" style="margin-top:4px;">Требуют внимания</p>' + attentionBlocks : '') +
     (bt.stable.length ? '<p class="section-label">В норме</p>' + stableBlocks : '') +
