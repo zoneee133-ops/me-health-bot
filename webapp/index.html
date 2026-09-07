@@ -407,7 +407,8 @@
 
   /* chat */
   .chat-scroll{ display:flex; flex-direction:column; gap:12px; padding-bottom:10px; }
-  .bubble{ max-width:82%; padding:12px 14px; border-radius:18px; font-size:14.5px; line-height:1.45; animation:fadeIn 0.25s ease; }
+  .bubble{ max-width:82%; padding:12px 14px; border-radius:18px; font-size:14.5px; line-height:1.5; animation:fadeIn 0.25s ease; white-space:pre-wrap; word-wrap:break-word; }
+  .bubble.ai{ max-width:88%; }
   .bubble.user{ align-self:flex-end; background:var(--ink); color:#fff; border-bottom-right-radius:6px; box-shadow:0 6px 16px -10px rgba(17,17,16,0.5); }
   .bubble.ai{ align-self:flex-start; background:var(--surface); border:none; border-bottom-left-radius:6px; box-shadow:var(--shadow-soft); }
   .suggested{ display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 6px; }
@@ -453,6 +454,37 @@
   #screen-meds .subtitle{ margin-bottom:10px; }
   .med-schedule-item{ display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border-soft); position:relative; min-height:52px; box-sizing:border-box; }
   .med-schedule-item:last-child{ border-bottom:none; }
+
+  /* --- compact meds v2 --- */
+  .med-block-label{ font-size:12px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-3); margin:0 0 8px; }
+  .med-today{ background:var(--surface); border-radius:var(--radius-m); box-shadow:var(--shadow-soft); overflow:hidden; }
+  .med-today-empty{ font-size:13px; color:var(--ink-3); padding:2px 2px 4px; }
+  .dose-row{ display:flex; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--border-soft); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .dose-row:last-child{ border-bottom:none; }
+  .dose-time{ font-size:13px; font-weight:700; color:var(--ink-2); font-variant-numeric:tabular-nums; width:44px; flex-shrink:0; }
+  .dose-name{ flex:1; min-width:0; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dose-dose{ color:var(--ink-3); font-weight:400; font-size:13px; }
+  .dose-check{ width:22px; height:22px; border-radius:50%; border:1.6px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; color:#fff; transition:background 0.15s ease, border-color 0.15s ease; }
+  .dose-row.due .dose-time{ color:var(--accent); }
+  .dose-row.later{ opacity:0.55; }
+  .dose-row.done .dose-name{ text-decoration:line-through; color:var(--ink-3); }
+  .dose-row.done .dose-check{ background:var(--accent); border-color:var(--accent); }
+
+  .med-card{ background:var(--surface); border-radius:var(--radius-m); box-shadow:var(--shadow-soft); padding:13px 15px; margin-bottom:10px; position:relative; }
+  .med-card .mc-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .med-card .mc-name{ font-size:15px; font-weight:600; margin:0; cursor:pointer; }
+  .med-card .mc-del{ background:none; border:none; color:var(--ink-3); font-size:19px; line-height:1; padding:0 2px; cursor:pointer; flex-shrink:0; opacity:0.5; }
+  .med-card .mc-now{ font-size:13.5px; color:var(--ink); margin:6px 0 0; font-weight:500; }
+  .med-card .mc-now.mc-done{ color:var(--ink-3); font-weight:400; }
+  .med-card .mc-times{ font-size:12.5px; color:var(--ink-2); margin:3px 0 0; font-variant-numeric:tabular-nums; }
+  .med-card .mc-next{ font-size:12px; color:var(--ink-3); margin:5px 0 0; }
+  .med-card .mc-course{ margin-top:8px; }
+  .med-card .mc-course summary{ font-size:12.5px; color:var(--accent); cursor:pointer; list-style:none; }
+  .med-card .mc-course summary::-webkit-details-marker{ display:none; }
+  .med-card .mc-course[open] summary{ margin-bottom:6px; }
+  .cs-stage{ font-size:12.5px; color:var(--ink-2); padding:5px 0 5px 10px; border-left:2px solid var(--border); line-height:1.4; }
+  .cs-stage.cur{ border-left-color:var(--accent); color:var(--ink); }
+  .cs-stage .cs-meta{ display:block; font-size:11.5px; color:var(--ink-3); margin-top:1px; }
   .med-time{ width:48px; font-size:14px; font-weight:700; color:var(--ink-2); flex-shrink:0; font-variant-numeric:tabular-nums; }
   .med-info{ flex:1; min-width:0; cursor:pointer; overflow:hidden; }
   .med-info .mi-name{ font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1096,6 +1128,10 @@
         <div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/></svg></span><div class="r-main"><p class="r-title">Приёмы врача</p><p class="r-sub" id="visitsSub">Добавить визит</p></div></div>
         <span class="chevron">›</span>
       </div>
+      <div class="row" id="rowScans">
+        <div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></span><div class="r-main"><p class="r-title">Снимки: МРТ, КТ, УЗИ, рентген</p><p class="r-sub" id="scansSub">Загрузить исследование</p></div></div>
+        <span class="chevron">›</span>
+      </div>
       <div class="row" data-nav="meds">
         <div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10.5 20.5l10-10a4.95 4.95 0 10-7-7l-10 10a4.95 4.95 0 107 7z"/><path d="M8.5 8.5l7 7"/></svg></span><div class="r-main"><p class="r-title">Лекарства и рецепты</p><p class="r-sub" id="medsSub">Добавить лекарство</p></div></div>
         <span class="chevron">›</span>
@@ -1115,8 +1151,8 @@
 
     <!-- MEDICATIONS -->
     <div class="screen" id="screen-meds">
-      <h1 class="title">Сегодня</h1>
-      <p class="subtitle">Расписание приёма лекарств</p>
+      <h1 class="title">Лекарства</h1>
+      <p class="subtitle">Приём по расписанию · напоминания в Telegram</p>
 
       <div id="medEmptyState" class="empty-state">
         <div class="e-icon">
@@ -1129,14 +1165,15 @@
         <p class="e-sub">Загрузите рецепт — Me сам составит график приёма</p>
       </div>
 
-      <div class="card" id="medScheduleCard" style="display:none;">
+      <div id="medScheduleCard" style="display:none;">
         <div id="medScheduleList"></div>
       </div>
 
       <div id="medAddSection" class="med-add-section">
-        <p class="section-label">Добавить рецепт</p>
+        <details id="medAddDetails">
+        <summary class="section-label" style="cursor:pointer; list-style:none;">＋ Добавить рецепт или лекарство</summary>
 
-        <label class="upload-zone" for="fileInput" id="photoLabel">
+        <label class="upload-zone" for="fileInput" id="photoLabel" style="margin-top:12px;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="margin:0 auto;display:block;color:var(--ink);">
             <path d="M12 16V4M12 4l-4 4M12 4l4 4"/>
             <path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/>
@@ -1155,6 +1192,7 @@
         <div class="error-box" id="analyzeError" style="display:none;"></div>
 
         <button class="cta secondary" id="manualBtn" style="margin-top:6px;">Ввести вручную</button>
+        </details>
       </div>
     </div>
 
@@ -1246,6 +1284,31 @@
     <div class="detail-screen" id="detail-bloodresult">
       <div class="detail-header"><button class="back-btn" data-close="detail-bloodresult"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Назад</button><span class="detail-header-title">Анализ крови</span></div>
       <div class="detail-body" id="bloodResultBody"></div>
+    </div>
+
+    <!-- Scans (MRI/CT/US) list -->
+    <div class="detail-screen" id="detail-scans">
+      <div class="detail-header"><button class="back-btn" data-close="detail-scans"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Назад</button><span class="detail-header-title">Снимки</span></div>
+      <div class="detail-body">
+        <h1 class="title" style="margin-top:2px;">МРТ, КТ, УЗИ, рентген</h1>
+        <p class="subtitle" style="margin-bottom:18px;">Загрузите заключение — Me объяснит, что нашли, простыми словами</p>
+        <div class="card" style="margin-bottom:12px; padding:18px 16px;">
+          <p style="margin:0 0 4px; font-size:15px; font-weight:600;">Загрузить заключение</p>
+          <p style="margin:0 0 14px; font-size:13px; color:var(--ink-2);">Текст протокола (фото, скан или PDF). Не сам снимок, а описание врача.</p>
+          <label class="cta accent" style="display:block; text-align:center; padding:13px; margin:0; cursor:pointer;" for="scanFileInput">Выбрать файл или фото</label>
+          <input type="file" id="scanFileInput" accept="image/*,application/pdf">
+        </div>
+        <div id="scanAnalyzing" style="display:none;"></div>
+        <div id="scansListWrap">
+          <p class="section-label" id="scansListLabel" style="display:none;">История исследований</p>
+          <div id="scansList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-screen" id="detail-scanresult">
+      <div class="detail-header"><button class="back-btn" data-close="detail-scanresult"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Назад</button><span class="detail-header-title">Разбор снимка</span></div>
+      <div class="detail-body" id="scanResultBody"></div>
     </div>
 
     <!-- Doctor Visits list -->
@@ -1410,6 +1473,7 @@
 const state = {
   meds: [],
   bloodTests: [],
+  scans: [],
   visits: [],
   chatContextEvents: []
 };
@@ -1425,14 +1489,14 @@ const visitQuestions = [
 let visitQIndex = 0;
 
 /* ================= API helper ================= */
-async function claudeMessage(content, maxTokens){
+async function claudeMessage(content, maxTokens, system){
   var tg = window.Telegram && window.Telegram.WebApp;
   var API = window.ME_API || '';
   var initData = (tg && tg.initData) || '';
   if (!initData) throw new Error("offline");
   const response = await fetch(API + '/api/llm', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ initData: initData, content: content, maxTokens: maxTokens || 700 })
+    body: JSON.stringify({ initData: initData, content: content, maxTokens: maxTokens || 700, system: system })
   });
   const data = await response.json();
   if (!response.ok || data.error) throw new Error(data.error || ('HTTP ' + response.status));
@@ -1639,22 +1703,19 @@ function refreshStatusCards(){
   if (medsMain && medsSub) {
     medsCard.classList.toggle('is-empty', !state.meds.length);
     if (state.meds.length){
+      var doses = (typeof todayDoses === 'function') ? todayDoses() : [];
+      var now = currentHHMM();
+      var taken = doses.filter(function(d){ return d.taken; }).length;
+      var total = doses.length;
       var next = null;
-      var taken = 0, total = 0;
-      state.meds.forEach(function(med) {
-        med.times.forEach(function(t) {
-          total++;
-          if (t.status === 'taken') taken++;
-          if (t.status !== 'taken' && (!next || t.time < next.time)) {
-            next = { time: t.time, name: med.name, period: med.period || 'every_day' };
-          }
-        });
-      });
+      doses.forEach(function(d){ if (!d.taken && (!next || d.time < next.time)) next = d; });
       var clockSvg = '<span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg></span>';
-      if (next) {
-        var periodHint = next.period && next.period !== 'every_day' ? ' · ' + periodLabel(next.period) : '';
+      if (!total){
+        medsMain.textContent = 'Курс идёт';
+        medsSub.textContent = state.meds.length + ' препарат(ов)';
+      } else if (next) {
         medsMain.innerHTML = clockSvg + next.time + ' — ' + next.name;
-        medsSub.textContent = (periodHint ? periodLabel(next.period) + ' · ' : '') + 'Принято: ' + taken + ' из ' + total;
+        medsSub.textContent = 'Принято: ' + taken + ' из ' + total;
       } else {
         medsMain.textContent = 'На сегодня всё принято';
         medsSub.textContent = 'Принято: ' + taken + ' из ' + total;
@@ -1904,6 +1965,8 @@ renderTimeline();
 function refreshHealthSubtitles(){
   document.getElementById('bloodTestsSub').textContent = state.bloodTests.length ? `${state.bloodTests.length} анализ(ов) · последний ${state.bloodTests[state.bloodTests.length-1].date}` : 'Добавить анализ';
   document.getElementById('visitsSub').textContent = state.visits.length ? `${state.visits.length} визит(ов) · последний ${state.visits[state.visits.length-1].date}` : 'Добавить визит';
+  var ss = document.getElementById('scansSub');
+  if (ss) ss.textContent = state.scans.length ? `${state.scans.length} исследование(й)` : 'Загрузить исследование';
   document.getElementById('medsSub').textContent = state.meds.length ? `${state.meds.length} препарат(ов) в расписании` : 'Добавить лекарство';
 }
 refreshHealthSubtitles();
@@ -1945,7 +2008,7 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
     const imgs = await fileToImageParts(file);
     const raw = await claudeMessage(imgs.concat([
       { type:'text', text:'Это результаты анализа крови/биохимии (фото, скан, PDF или почерк, возможно несколько страниц). Распознай все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"короткое понятное название показателя","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"объяснение для человека без медицинского образования"}],"summary":"общий вывод по-человечески"}\n\nОЧЕНЬ ВАЖНО — язык:\n- Пиши так, будто объясняешь другу или бабушке, которые НИЧЕГО не знают про медицину.\n- ЗАПРЕЩЕНО использовать медицинские термины и аббревиатуры (эритроциты, гематокрит, MCHC, MCV, СОЭ, ретикулоциты и т.п.) без объяснения. Если без термина никак — сразу простыми словами в скобках, что это.\n- В "name" давай короткое бытовое название (например: "Красные клетки крови", "Белые клетки крови", "Свёртывание крови", "Гемоглобин (белок, переносящий кислород)"). Не пиши длинные лабораторные формулировки и латинские буквы.\n- В "plain": 1-2 коротких предложения. Что этот показатель показывает + что означает именно это значение. Если отклонение — спокойно объясни, из-за чего так бывает в обычной жизни (питьё, спорт, еда, недосып). НИКАКОЙ паники, НИКАКИХ страшных слов, НЕ пугай, НЕ ставь диагноз.\n- "summary": КОРОТКО, 1 предложение (максимум 2). Спокойно: в целом нормально или что показать врачу. Без терминов, без перечисления всех показателей.\nНе выдумывай показатели, которых нет на изображении. Только JSON.' }
-    ]), 4000);
+    ]), 4000, '');
     const parsed = parseJSONLoose(raw);
     if (!parsed.markers || !parsed.markers.length) throw new Error('no markers');
     const bt = addBloodTest(parsed);
@@ -1959,6 +2022,106 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
     setTimeout(() => { box.style.display = 'none'; if (listWrap) listWrap.style.display = 'block'; }, 3500);
   }
 });
+
+/* ================= СНИМКИ: МРТ / КТ / УЗИ / рентген ================= */
+var SCAN_PROMPT = 'Это протокол лучевого исследования (МРТ, КТ, УЗИ или рентген), текст заключения врача, возможно несколько страниц. Распознай и объясни ПОЛНОСТЬЮ простыми словами.\n' +
+'Верни СТРОГО JSON без markdown:\n' +
+'{"study":"вид исследования простыми словами","area":"что смотрели","date":"дата или пусто",' +
+'"findings":[{"name":"находка коротким понятным названием","plain":"что это значит простыми словами: насколько серьёзно, из-за чего бывает, влияет ли на жизнь"}],' +
+'"plain_conclusion":"итог 2-4 предложения человеческим языком: что нашли, что это значит, стоит ли волноваться",' +
+'"recommendation":"что делать дальше (к какому врачу, нужны ли доп. обследования) — по тексту протокола"}\n' +
+'Без жаргона: каждый термин — сразу расшифровка в скобках. Не пугай, но и не преуменьшай. Только JSON.';
+
+function scanDate(p){ return (p.date && String(p.date).trim()) ? p.date : ''; }
+
+function addScan(parsed){
+  var sc = {
+    id: 'sc' + Math.random().toString(36).slice(2,8),
+    serverId: parsed._serverId || null,
+    study: parsed.study || 'Исследование',
+    area: parsed.area || '',
+    date: scanDate(parsed),
+    findings: Array.isArray(parsed.findings) ? parsed.findings : [],
+    conclusion: parsed.plain_conclusion || parsed.conclusion || '',
+    recommendation: parsed.recommendation || ''
+  };
+  state.scans.push(sc);
+  renderScansList();
+  if (typeof refreshHealthSubtitles === 'function') refreshHealthSubtitles();
+  return sc;
+}
+
+function renderScansList(){
+  var wrap = document.getElementById('scansList');
+  var label = document.getElementById('scansListLabel');
+  if (!wrap) return;
+  if (!state.scans.length){ wrap.innerHTML = ''; if (label) label.style.display = 'none'; return; }
+  if (label) label.style.display = 'block';
+  wrap.innerHTML = state.scans.slice().reverse().map(function(sc){
+    return '<div class="row" data-scan="' + sc.id + '"><div class="r-main"><p class="r-title">' + sc.study + '</p>' +
+      '<p class="r-sub">' + [sc.area, sc.date].filter(Boolean).join(' · ') + '</p></div><span class="chevron">›</span></div>';
+  }).join('');
+  wrap.querySelectorAll('[data-scan]').forEach(function(el){
+    el.addEventListener('click', function(){ openScanResult(el.dataset.scan); });
+  });
+}
+
+function openScanResult(id){
+  var sc = state.scans.find(function(s){ return s.id === id; });
+  if (!sc) return;
+  var body = document.getElementById('scanResultBody');
+  var findings = (sc.findings || []).map(function(f){
+    return '<div class="marker-brief"><div class="mb-head"><div class="mb-left"><span class="mb-dot ok"></span><p class="mb-name">' + (f.name || '') + '</p></div></div>' +
+      '<p class="mb-meaning">' + (f.plain || '') + '</p></div>';
+  }).join('');
+  body.innerHTML =
+    '<h1 class="title" style="margin-top:2px;">' + sc.study + '</h1>' +
+    '<p class="subtitle" style="margin-bottom:14px;">' + [sc.area, sc.date].filter(Boolean).join(' · ') + '</p>' +
+    (sc.conclusion ? '<div class="ai-summary" style="margin-top:0;margin-bottom:16px;"><div class="dot"></div><p>' + sc.conclusion + '</p></div>' : '') +
+    (findings ? '<p class="section-label">Что нашли</p>' + findings : '') +
+    (sc.recommendation ? '<p class="section-label">Что делать дальше</p><div class="card"><p style="font-size:14px;margin:0;line-height:1.5;">' + sc.recommendation + '</p></div>' : '') +
+    '<button class="cta accent" id="scanAskMe" style="margin-top:16px;">Спросить Me про это</button>' +
+    '<p class="disclaimer">Me не ставит диагнозы. Обсудите результат с врачом.</p>';
+  var ask = document.getElementById('scanAskMe');
+  if (ask) ask.addEventListener('click', function(){
+    closeDetail('detail-scanresult');
+    goTo('ask');
+    var inp = document.getElementById('chatInput');
+    if (inp){ inp.value = 'Объясни подробнее моё исследование: ' + sc.study + '. ' + (sc.conclusion || ''); inp.focus(); }
+  });
+  openDetail('detail-scanresult');
+}
+
+var scanFileInputEl = document.getElementById('scanFileInput');
+if (scanFileInputEl) scanFileInputEl.addEventListener('change', async () => {
+  var input = scanFileInputEl;
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  var box = document.getElementById('scanAnalyzing');
+  var listWrap = document.getElementById('scansListWrap');
+  box.style.display = 'block';
+  box.innerHTML = '<div class="analyzing-box"><div class="analyzing-spinner"></div><p class="a-strong">Читаю заключение…</p><p style="font-size:13px;color:var(--ink-2);margin-top:6px;">Me разбирает исследование и объясняет простыми словами</p></div>';
+  if (listWrap) listWrap.style.display = 'none';
+  try {
+    var imgs = await fileToImageParts(file);
+    var raw = await claudeMessage(imgs.concat([{ type:'text', text:SCAN_PROMPT }]), 3500, '');
+    var parsed = parseJSONLoose(raw);
+    if (!parsed.plain_conclusion && !(parsed.findings && parsed.findings.length)) throw new Error('empty');
+    var sc = addScan(parsed);
+    box.style.display = 'none';
+    if (listWrap) listWrap.style.display = 'block';
+    showToast('Снимок разобран');
+    openScanResult(sc.id);
+    if (window.__meSave) window.__meSave(parsed, 'scan');
+  } catch (err) {
+    box.innerHTML = '<div class="error-box">Не получилось разобрать. Загрузите текст заключения (описание врача) крупнее и чётче.</div>';
+    setTimeout(function(){ box.style.display = 'none'; if (listWrap) listWrap.style.display = 'block'; }, 3500);
+  }
+});
+
+var rowScansEl = document.getElementById('rowScans');
+if (rowScansEl) rowScansEl.addEventListener('click', function(){ renderScansList(); openDetail('detail-scans'); });
 
 /* семейный доступ — ждёт бэкенда, пока недоступно */
 (function(){
@@ -2390,7 +2553,11 @@ function renderBloodStep3(bt){
     lines.push('');
     lines.push('3. ТЕКУЩАЯ ТЕРАПИЯ');
     if (all || selected.includes('f_meds')) {
-      if (state.meds.length) state.meds.forEach(m => lines.push('— ' + m.name + (m.dosage ? ' ' + m.dosage : '') + (m.times ? ' · ' + m.times.map(t=>t.time).join(', ') : '')));
+      if (state.meds.length) state.meds.forEach(function(m){
+        var act = (typeof activeStage === 'function') ? activeStage(m, todayISO()) : null;
+        var st = act ? act.stage : (m.stages && m.stages[0]);
+        lines.push('— ' + m.name + (st && st.dose ? ' ' + st.dose : (m.dosage ? ' ' + m.dosage : '')) + (st && st.times ? ' · ' + st.times.join(', ') : ''));
+      });
       else lines.push('Активные препараты в приложении не указаны.');
     } else {
       lines.push('(терапия не включена в выбор)');
@@ -2554,7 +2721,7 @@ document.getElementById('qNextBtn').addEventListener('click', async () => {
   document.getElementById('qNextBtn').style.display = 'none';
   try {
     const answersText = visitQuestions.map(q => `${q.q} → ${pendingVisit[q.key] || '—'}`).join('\n');
-    const raw = await claudeMessage(`Структурируй ответы пациента после приёма врача в JSON без markdown, на русском:\n{"doctorType":"тип врача","notes":["краткое резюме того, что сказал врач"],"medication":"препараты и частота или null","labs":"какие анализы сдать или null","followUp":"когда прийти снова или null"}\nОтветы:\n${answersText}`, 500);
+    const raw = await claudeMessage(`Структурируй ответы пациента после приёма врача в JSON без markdown, на русском:\n{"doctorType":"тип врача","notes":["краткое резюме того, что сказал врач"],"medication":"препараты и частота или null","labs":"какие анализы сдать или null","followUp":"когда прийти снова или null"}\nОтветы:\n${answersText}`, 500, '');
     const parsed = parseJSONLoose(raw);
     saveVisit(parsed);
   } catch (err) {
@@ -2627,6 +2794,8 @@ function refreshMedEmptyState(){
   const has = state.meds.length > 0;
   medEmptyState.style.display = has ? 'none' : 'block';
   medScheduleCard.style.display = has ? 'block' : 'none';
+  var d = document.getElementById('medAddDetails');
+  if (d && !d.dataset.touched) d.open = !has;
 }
 refreshMedEmptyState();
 /* ensure no residual toast from other flows when opening meds */
@@ -2672,8 +2841,8 @@ analyzeBtn.addEventListener('click', async () => {
   analyzeBtn.style.display = 'none'; analyzeStatus.style.display = 'flex'; analyzeError.style.display = 'none';
   try {
     const raw = await claudeMessage(uploadedParts.concat([
-      { type:'text', text:'Это фото/скан/PDF рецепта или назначения врача (часто рукописный, почерк трудный, несколько страниц). Задача — распознать все препараты и добавки и схему приёма.\n\nПравила:\n- Читай по контексту. Если слово неразборчиво — дай наиболее вероятный вариант и добавь "?" в конце названия.\n- НЕ придумывай препараты, которых на листе нет. НЕ придумывай ФИО пациента.\n- Единицы и числа переписывай ровно как в рецепте (мг, мкг, таб, кап, мл; "1/2 таб"; "через день").\n- Схему приёма (снижение дозы, курсами, "1 мес", "6 мес", "через день") запиши словами в поле schedule.\n\nОтветь СТРОГО JSON без markdown:\n{"raw_text":"весь распознанный текст построчно","meds":[{"name":"препарат (с ? если не уверен)","dosage":"доза как в рецепте","schedule":"схема приёма словами","frequency_per_day":число или null,"suggested_times":["HH:MM"]}]}\nЕсли на изображении нет рецепта — {"raw_text":"...","meds":[]}. Только JSON.' }
-    ]), 4000);
+      { type:'text', text:RX_PROMPT }
+    ]), 4500, '');
     const parsed = parseJSONLoose(raw);
     const meds = pickMeds(parsed);
     if (!meds.length) throw new Error('no meds');
@@ -2951,14 +3120,98 @@ if (manualMedDone) {
 }
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
+function dayNum(s){ return Math.floor(Date.parse(s + 'T00:00:00Z') / 86400000); }
+function isoPlusDays(s, n){ return new Date((dayNum(s) + n) * 86400000).toISOString().slice(0,10); }
+function ruDate(s){
+  var m = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  var d = new Date(s + 'T00:00:00Z');
+  return d.getUTCDate() + ' ' + m[d.getUTCMonth()];
+}
+
+var RX_PROMPT = 'Это фото/скан/PDF рецепта или назначения врача (часто рукописный, почерк трудный, может быть несколько страниц). Полностью разбери ВСЮ схему лечения.\n\n' +
+'Правила распознавания:\n' +
+'- Читай по контексту. Неуверенное слово — наиболее вероятный вариант + "?" в конце.\n' +
+'- НЕ выдумывай препараты, которых нет. НЕ выдумывай ФИО.\n' +
+'- Числа и единицы — ровно как в рецепте.\n\n' +
+'Правила схемы (ГЛАВНОЕ):\n' +
+'- Если доза меняется по этапам (например: 30 мг/сут 1 месяц, затем 20 мг/сут 1 месяц, затем 10 мг/сут 1 месяц) — сделай ОТДЕЛЬНЫЙ элемент stages для каждого этапа, по порядку, с длительностью. Месяц = 30 дней, неделя = 7 дней, "через день" тоже описывай.\n' +
+'- Если приём одинаковый весь курс — один элемент stages.\n' +
+'- "при необходимости" / "при обострении" — as_needed: true.\n' +
+'- times: расставь разумное время приёма (утро 08:00, день 14:00, вечер 20:00) по числу приёмов в день.\n\n' +
+'Ответь СТРОГО JSON без markdown:\n' +
+'{"raw_text":"весь распознанный текст построчно",' +
+'"meds":[{"name":"препарат (? если неточно)","purpose":"зачем назначен, короткая простая фраза",' +
+'"as_needed":false,' +
+'"stages":[{"dose":"30 мг","per_day":1,"times":["08:00"],"duration_text":"1 месяц","duration_days":30,"note":""}]}]}\n' +
+'Если рецепта нет — {"raw_text":"...","meds":[]}. Только JSON.';
+
+/* нормализуем один stage из ответа модели */
+function normStage(s){
+  var times = (Array.isArray(s.times) ? s.times : []).filter(function(t){ return /^\d{1,2}:\d{2}$/.test(t); })
+    .map(function(t){ return t.length === 4 ? '0' + t : t; });
+  var per = Number(s.per_day || s.perDay) || times.length || 1;
+  if (!times.length) times = suggestTimes(per);
+  var dd = Number(s.duration_days != null ? s.duration_days : s.durationDays);
+  return {
+    dose: String(s.dose || s.dosage || '').trim(),
+    perDay: per,
+    times: times,
+    durationDays: (isFinite(dd) && dd > 0) ? Math.round(dd) : null,
+    durationText: String(s.duration_text || s.durationText || '').trim(),
+    note: String(s.note || '').trim()
+  };
+}
+function medStages(m){
+  var st = (Array.isArray(m.stages) && m.stages.length) ? m.stages.map(normStage) : null;
+  if (!st){
+    var per = Number(m.frequency_per_day || m.perDay) || (m.suggested_times || []).length || 2;
+    st = [ normStage({ dose: m.dosage || m.dose || '', per_day: per, times: m.suggested_times, note: m.schedule || '' }) ];
+  }
+  return st.slice(0, 12);
+}
+
+/* активный этап курса на дату (или null — курс завершён / ещё не начат) */
+function activeStage(med, dateStr){
+  var stages = med.stages || [];
+  if (!stages.length) return null;
+  var elapsed = dayNum(dateStr) - dayNum(med.startDate || dateStr);
+  if (elapsed < 0) return null;
+  var acc = 0;
+  for (var i = 0; i < stages.length; i++){
+    var d = stages[i].durationDays;
+    if (!d) return { stage: stages[i], index: i, startsOn: isoPlusDays(med.startDate, acc), endsOn: null };
+    if (elapsed < acc + d) return { stage: stages[i], index: i, startsOn: isoPlusDays(med.startDate, acc), endsOn: isoPlusDays(med.startDate, acc + d - 1) };
+    acc += d;
+  }
+  return null;
+}
+function stageStart(med, idx){
+  var acc = 0;
+  for (var i = 0; i < idx; i++){ acc += (med.stages[i].durationDays || 0); }
+  return isoPlusDays(med.startDate, acc);
+}
+function courseDone(med){ return med.startDate && !activeStage(med, todayISO()) && dayNum(todayISO()) >= dayNum(med.startDate); }
+
+function stageLabel(st){
+  var parts = [];
+  if (st.dose) parts.push(st.dose);
+  parts.push(st.perDay === 1 ? '1 раз в день' : st.perDay + ' раза в день');
+  return parts.join(' · ');
+}
 
 function confirmRxMeds(meds, rawText){
-  var rows = meds.map(function(m){
-    var t = (m.suggested_times && m.suggested_times.length) ? m.suggested_times : suggestTimes(m.frequency_per_day || 2);
-    var sched = m.schedule ? '<p style="margin:3px 0 0;font-size:12.5px;color:var(--ink-3);line-height:1.4;">' + m.schedule + '</p>' : '';
+  var norm = meds.map(function(m){ return { name: m.name || 'Без названия', purpose: m.purpose || '', asNeeded: !!m.as_needed, stages: medStages(m) }; });
+  var rows = norm.map(function(m){
+    var stageHtml = m.stages.map(function(st, i){
+      var dur = st.durationText || (st.durationDays ? st.durationDays + ' дн.' : 'постоянно');
+      return '<div style="font-size:12.5px;color:var(--ink-2);margin-top:2px;">' +
+        (m.stages.length > 1 ? '<b>Этап ' + (i+1) + ':</b> ' : '') + stageLabel(st) + ' · ' + dur +
+        ' <span style="color:var(--ink-3);">(' + st.times.join(', ') + ')</span></div>';
+    }).join('');
     return '<div style="padding:11px 0;border-bottom:1px solid var(--border-soft);">' +
-      '<p style="margin:0;font-weight:600;font-size:15px;">' + (m.name || 'Без названия') + '</p>' +
-      '<p style="margin:3px 0 0;font-size:13px;color:var(--ink-2);">' + (m.dosage ? m.dosage + ' · ' : '') + 'напоминать в ' + t.join(', ') + '</p>' + sched + '</div>';
+      '<p style="margin:0;font-weight:600;font-size:15px;">' + m.name + (m.asNeeded ? ' <span style="font-weight:400;color:var(--ink-3);">(при необходимости)</span>' : '') + '</p>' +
+      (m.purpose ? '<p style="margin:2px 0 0;font-size:12.5px;color:var(--ink-3);">' + m.purpose + '</p>' : '') +
+      stageHtml + '</div>';
   }).join('');
   var rawBlock = rawText
     ? '<details style="margin:12px 0 4px;"><summary style="font-size:13px;color:var(--ink-2);cursor:pointer;">Показать распознанный текст</summary>' +
@@ -2966,70 +3219,142 @@ function confirmRxMeds(meds, rawText){
     : '';
   openSheet(
     '<p class="sheet-title">Врач назначил</p>' +
-    '<p class="sheet-sub">Почерк распознан примерно — сверьте названия и дозы с рецептом.</p>' + rows + rawBlock +
-    '<p style="font-size:13px;color:var(--ink-2);line-height:1.5;margin:14px 0 12px;">Внести в календарь и напоминать в Telegram, когда придёт время приёма?</p>' +
-    '<button class="cta accent" id="rxYes">Да, внести в календарь</button>' +
+    '<p class="sheet-sub">Сверьте названия и дозы с рецептом — почерк распознан примерно.</p>' + rows + rawBlock +
+    '<p style="font-size:13px;color:var(--ink-2);line-height:1.5;margin:14px 0 12px;">Внести курс в календарь? Me будет напоминать в Telegram, а при смене дозы — сам обновит этап.</p>' +
+    '<button class="cta accent" id="rxYes">Да, внести курс</button>' +
     '<button class="cta secondary" id="rxNo" style="margin-top:8px;">Не сейчас</button>'
   );
-  var y = document.getElementById('rxYes'), n = document.getElementById('rxNo');
-  if (y) y.addEventListener('click', function(){
+  var apply = function(){
     var today = todayISO();
-    meds.forEach(function(m){ m.startDate = today; addMedication(m); });
-    closeSheet(); goTo('meds'); showToast('Расписание создано');
+    norm.forEach(function(m){ addMedication({ name: m.name, purpose: m.purpose, asNeeded: m.asNeeded, stages: m.stages, startDate: today }); });
+    closeSheet(); goTo('meds'); showToast('Курс внесён в календарь');
     if (window.__meSaveMeds) window.__meSaveMeds();
-  });
-  if (n) n.addEventListener('click', function(){
-    meds.forEach(addMedication); closeSheet(); goTo('meds');
-    if (window.__meSaveMeds) window.__meSaveMeds();
-  });
+  };
+  var y = document.getElementById('rxYes'), n = document.getElementById('rxNo');
+  if (y) y.addEventListener('click', apply);
+  if (n) n.addEventListener('click', function(){ apply(); });
 }
 
 function addMedication(m){
-  const times = (m.suggested_times && m.suggested_times.length) ? m.suggested_times : suggestTimes(m.frequency_per_day || 2);
+  var stages = (Array.isArray(m.stages) && m.stages.length && m.stages[0].times) ? m.stages : medStages(m);
+  var first = stages[0] || { dose:'', perDay:1, times:['09:00'] };
   state.meds.push({
     id: 'm' + Math.random().toString(36).slice(2, 8),
     name: m.name || 'Без названия',
-    dosage: m.dosage || '',
-    period: m.period || 'every_day',
-    startDate: m.startDate || null,
+    purpose: m.purpose || '',
+    asNeeded: !!m.asNeeded,
+    dosage: first.dose || m.dosage || '',
+    startDate: m.startDate || todayISO(),
     endDate: m.endDate || null,
-    times: times.map(function(t){ return { time: t, status: t <= currentHHMM() ? 'take' : 'upcoming' }; })
+    stages: stages,
+    taken: {}
   });
   renderMeds(); renderTimeline(); refreshHealthSubtitles();
   if (typeof refreshStatusCards === 'function') refreshStatusCards();
 }
 
+/* приёмы на сегодня по всем препаратам */
+function todayDoses(){
+  var today = todayISO();
+  var list = [];
+  state.meds.forEach(function(med){
+    if (med.asNeeded) return;
+    var act = activeStage(med, today);
+    if (!act) return;
+    act.stage.times.forEach(function(tm){
+      var key = today + '|' + act.index + '|' + tm;
+      list.push({ medId: med.id, name: med.name, dose: act.stage.dose, time: tm, key: key, taken: !!med.taken[key] });
+    });
+  });
+  list.sort(function(a,b){ return a.time.localeCompare(b.time); });
+  return list;
+}
+
 function renderMeds(){
   refreshMedEmptyState();
-  const rows = [];
-  state.meds.forEach(med => med.times.forEach(t => rows.push({ med, t })));
-  rows.sort((a,b) => a.t.time.localeCompare(b.t.time));
-  medScheduleList.innerHTML = rows.map(({med,t}) => `
-    <div class="med-schedule-item">
-      <div class="med-time">${t.time}</div>
-      <div class="med-info" data-explain="${med.id}"><p class="mi-name">${med.name}</p><p class="mi-dose">${med.dosage} · что это?</p></div>
-      <div class="check-pop" data-pop="${med.id}-${t.time}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
-      <button class="med-status ${t.status}" data-med="${med.id}" data-time="${t.time}">${t.status === 'taken' ? 'Принято' : t.status === 'upcoming' ? 'Позже' : 'Принять'}</button>
-    </div>`).join('');
+  if (!state.meds.length){ medScheduleList.innerHTML = ''; return; }
+  var now = currentHHMM();
+  var doses = todayDoses();
 
-  medScheduleList.querySelectorAll('.med-status').forEach(btn => btn.addEventListener('click', () => {
-    const med = state.meds.find(m => m.id === btn.dataset.med);
-    const slot = med.times.find(x => x.time === btn.dataset.time);
-    if (slot.status === 'take'){
-      slot.status = 'taken';
-      if (typeof refreshStatusCards === 'function') refreshStatusCards();
-      const pop = medScheduleList.querySelector(`[data-pop="${med.id}-${slot.time}"]`);
-      if (pop){ pop.classList.add('show'); setTimeout(() => renderMeds(), 550); } else renderMeds();
+  var todayHtml = '<p class="med-block-label">Сегодня</p>';
+  if (!doses.length){
+    todayHtml += '<div class="med-today-empty">На сегодня приёмов по расписанию нет</div>';
+  } else {
+    todayHtml += '<div class="med-today">' + doses.map(function(d){
+      var cls = d.taken ? 'done' : (d.time <= now ? 'due' : 'later');
+      return '<div class="dose-row ' + cls + '" data-dose="' + d.key + '" data-med="' + d.medId + '">' +
+        '<span class="dose-time">' + d.time + '</span>' +
+        '<span class="dose-name">' + d.name + (d.dose ? ' <span class="dose-dose">' + d.dose + '</span>' : '') + '</span>' +
+        '<span class="dose-check">' + (d.taken ? '✓' : '') + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  var cardsHtml = '<p class="med-block-label" style="margin-top:18px;">Курс</p>' + state.meds.map(function(med){
+    var act = activeStage(med, todayISO());
+    var done = courseDone(med);
+    var head = '<div class="mc-top"><p class="mc-name" data-explain="' + med.id + '">' + med.name +
+      '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:5px;vertical-align:-1px;opacity:.5;"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></p>' +
+      '<button class="mc-del" data-del="' + med.id + '" aria-label="Удалить">×</button></div>';
+    var body;
+    if (med.asNeeded){
+      body = '<p class="mc-now">При необходимости' + (med.dosage ? ' · ' + med.dosage : '') + '</p>';
+    } else if (done){
+      body = '<p class="mc-now mc-done">Курс завершён</p>';
+    } else if (act){
+      body = '<p class="mc-now">' + (med.stages.length > 1 ? 'Сейчас: ' : '') + stageLabel(act.stage) + '</p>' +
+        '<p class="mc-times">' + act.stage.times.join(' · ') + (act.endsOn ? ' &nbsp;·&nbsp; до ' + ruDate(act.endsOn) : '') + '</p>';
+      if (med.stages[act.index + 1]){
+        var nx = med.stages[act.index + 1];
+        body += '<p class="mc-next">→ дальше: ' + stageLabel(nx) + ' с ' + ruDate(stageStart(med, act.index + 1)) + '</p>';
+      }
+    } else {
+      body = '<p class="mc-now">Начало ' + ruDate(med.startDate) + '</p>';
     }
-  }));
-  medScheduleList.querySelectorAll('[data-explain]').forEach(el => el.addEventListener('click', () => openMedExplain(el.dataset.explain)));
+    var courseEl = '';
+    if (med.stages.length > 1){
+      courseEl = '<details class="mc-course"><summary>Весь курс (' + med.stages.length + ' этапа)</summary>' +
+        med.stages.map(function(st, i){
+          var from = ruDate(stageStart(med, i));
+          var dur = st.durationText || (st.durationDays ? st.durationDays + ' дн.' : 'постоянно');
+          var cur = act && act.index === i;
+          return '<div class="cs-stage' + (cur ? ' cur' : '') + '"><b>' + (i+1) + '.</b> ' + stageLabel(st) +
+            '<span class="cs-meta">c ' + from + ' · ' + dur + ' · ' + st.times.join(', ') + '</span></div>';
+        }).join('') + '</details>';
+    }
+    return '<div class="med-card">' + head + body + courseEl + '</div>';
+  }).join('');
+
+  medScheduleList.innerHTML = todayHtml + cardsHtml;
+
+  medScheduleList.querySelectorAll('.dose-row').forEach(function(row){
+    row.addEventListener('click', function(){
+      var med = state.meds.find(function(m){ return m.id === row.dataset.med; });
+      if (!med) return;
+      med.taken[row.dataset.dose] = !med.taken[row.dataset.dose];
+      if (typeof __haptic === 'function') __haptic('light');
+      renderMeds();
+      if (typeof refreshStatusCards === 'function') refreshStatusCards();
+    });
+  });
+  medScheduleList.querySelectorAll('[data-explain]').forEach(function(el){
+    el.addEventListener('click', function(){ openMedExplain(el.dataset.explain); });
+  });
+  medScheduleList.querySelectorAll('[data-del]').forEach(function(b){
+    b.addEventListener('click', function(e){
+      e.stopPropagation();
+      state.meds = state.meds.filter(function(m){ return m.id !== b.dataset.del; });
+      renderMeds(); renderTimeline(); refreshHealthSubtitles();
+      if (typeof refreshStatusCards === 'function') refreshStatusCards();
+      if (window.__meSaveMeds) window.__meSaveMeds();
+    });
+  });
 }
 
 async function openMedExplain(medId){
   const med = state.meds.find(m => m.id === medId); if (!med) return;
   openSheet(`<p class="sheet-title">${med.name}</p><p class="sheet-sub">${med.dosage}</p><div class="inline-status"><div class="spinner"></div><span>Me объясняет назначение…</span></div>`);
   try {
-    const raw = await claudeMessage(`Ты — Me, ИИ-ассистент по здоровью. Кратко (2-3 предложения, на русском) объясни, для чего обычно применяется препарат "${med.name}". Не меняй дозировку, не советуй отменять приём, не ставь диагноз. Если не уверен в названии — так и скажи: "Не могу точно определить по названию — уточните у врача или фармацевта."`, 300);
+    const raw = await claudeMessage(`Объясни простыми словами, для чего обычно назначают "${med.name}"${med.purpose ? ' (врач указал цель: ' + med.purpose + ')' : ''}: что это за препарат, при каких состояниях помогает, как действует. 3-5 предложений. Не меняй дозировку и не советуй отменять приём. Если название неточное — скажи об этом.`, 500);
     openSheet(`<p class="sheet-title">${med.name}</p><p class="sheet-sub">${med.dosage}</p><p style="font-size:14px; line-height:1.55;">${raw}</p>`);
   } catch(err){
     openSheet(`<p class="sheet-title">${med.name}</p><p class="sheet-sub">${med.dosage}</p><p style="font-size:14px; color:var(--ink-2);">Не получилось получить объяснение сейчас.</p>`);
@@ -3050,7 +3375,7 @@ async function sendChat(text){
   addBubble('user', text); chatInput.value = '';
   const loadingBubble = addBubble('ai', '…');
   try {
-    const raw = await claudeMessage(`Ты — Me, персональный ИИ-ассистент по здоровью. Отвечай кратко (2-4 предложения), тепло и по делу, на русском. Используй данные пользователя, если уместно:\\n${baseHealthContext()}\\nНикогда не ставь диагноз — только объясняй и, если нужно, советуй обсудить с врачом.\\n\\nВопрос: ${text}`, 500);
+    const raw = await claudeMessage(`Данные пользователя (используй, если уместно):\n${baseHealthContext()}\n\nВопрос пользователя: ${text}`, 1100);
     loadingBubble.textContent = raw;
   } catch(err){ loadingBubble.textContent = 'Что-то пошло не так. Попробуйте снова.'; }
 }
@@ -3177,7 +3502,15 @@ function showToast(msg){
     tg.ready();
     tg.expand();
     try { tg.setHeaderColor('#F0E7D5'); tg.setBackgroundColor('#E4D9C1'); } catch(e){}
-    try { tg.disableClosingConfirmation(); } catch(e){}
+    // никаких подтверждений при закрытии — вкладка должна закрываться сразу
+    var killClose = function(){
+      try { tg.disableClosingConfirmation(); } catch(e){}
+      try { if (tg.isClosingConfirmationEnabled) tg.disableClosingConfirmation(); } catch(e){}
+    };
+    killClose();
+    setTimeout(killClose, 400);
+    setTimeout(killClose, 1600);
+    document.addEventListener('visibilitychange', killClose);
     // реальное имя пользователя Telegram
     var u = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
     var name = (u.first_name || '').trim();
@@ -3236,7 +3569,11 @@ function showToast(msg){
   window.__meSaveMeds = LIVE ? function(){
     if (_medsSaving) return; _medsSaving = true;
     var payload = (state.meds || []).map(function(m){
-      return { name:m.name, dosage:m.dosage, times:(m.times||[]).map(function(t){ return t.time; }), startDate:m.startDate || null, endDate:m.endDate || null };
+      return {
+        name:m.name, dosage:m.dosage, purpose:m.purpose || '', asNeeded:!!m.asNeeded,
+        startDate:m.startDate || null, endDate:m.endDate || null,
+        stages:(m.stages||[]).map(function(s){ return { dose:s.dose, perDay:s.perDay, times:s.times, durationDays:s.durationDays, note:s.note||'' }; })
+      };
     });
     fetch(API + '/api/meds', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -3256,13 +3593,21 @@ function showToast(msg){
       .then(function(j){
         (j.items || []).forEach(function(it){
           var p = it.analysis || {}; p._serverId = it.id;
-          try { addBloodTest(p); } catch(e){}
+          try {
+            if (it.source === 'scan') addScan(p);
+            else addBloodTest(p);
+          } catch(e){}
         });
         var sp = startParam();
         if (sp && sp.indexOf('blood_') === 0){
           var sid = sp.slice(6);
           var bt = (state.bloodTests || []).filter(function(b){ return b.serverId === sid; })[0];
           if (bt){ goTo('health'); if (typeof renderBloodTestsList === 'function') renderBloodTestsList(); openDetail('detail-bloodtests'); openBloodResult(bt.id); }
+        }
+        if (sp && sp.indexOf('scan_') === 0){
+          var ssid = sp.slice(5);
+          var scn = (state.scans || []).filter(function(s){ return s.serverId === ssid; })[0];
+          if (scn){ goTo('health'); openDetail('detail-scans'); openScanResult(scn.id); }
         }
       })
       .catch(function(e){ console.warn('load analyses', e); });
@@ -3271,7 +3616,7 @@ function showToast(msg){
       .then(function(r){ return r.json(); })
       .then(function(j){
         (j.items || []).forEach(function(it){
-          try { addMedication({ name:it.name, dosage:it.dosage, suggested_times:it.times, startDate:it.startDate, endDate:it.endDate }); } catch(e){}
+          try { addMedication({ name:it.name, dosage:it.dosage, purpose:it.purpose, asNeeded:it.asNeeded, stages:it.stages, suggested_times:it.times, startDate:it.startDate, endDate:it.endDate }); } catch(e){}
         });
       })
       .catch(function(e){ console.warn('load meds', e); });

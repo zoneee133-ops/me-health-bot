@@ -4,8 +4,19 @@
  * env приходит из Pages project: binding DB (D1), vars/secrets BOT_TOKEN / OPENROUTER_KEY / SETUP_SECRET / WEBAPP_URL.
  */
 
-const DEFAULT_MODEL = "minimax/minimax-m3:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+// универсальный медицинский промпт — применяется ко всем текстовым запросам,
+// если фронтенд не прислал свой system.
+const SYSTEM_MED =
+  "Ты — Me, медицинский ИИ-помощник. Твоя задача — разбираться в информации ПОЛНОСТЬЮ и объяснять человеку без медицинского образования максимально простыми словами.\n" +
+  "Правила:\n" +
+  "1. Никакого жаргона. Любой медицинский термин — сразу расшифровывай простыми словами в скобках.\n" +
+  "2. Отвечай на ЛЮБЫЕ вопросы о здоровье, лекарствах, болезнях, травмах, обследованиях и вариантах лечения (включая операции). НЕ отказывайся. Если спрашивают про операции — перечисли варианты, как каждый проходит, чем отличаются, насколько сложные, когда применяются.\n" +
+  "3. Отвечай развёрнуто и по делу. Разбивай на короткие абзацы, при перечислении — списки через «— ». НЕ используй markdown (никаких #, *, **, ###). Только простой текст. Не лей воду.\n" +
+  "4. Ты не заменяешь врача и не ставишь диагноз. Добавляй короткое напоминание обсудить с врачом — но НЕ вместо ответа, а в дополнение.\n" +
+  "5. Не назначай конкретную дозировку лично пациенту, но можешь объяснять общепринятые схемы и для чего препарат нужен.\n" +
+  "6. Пиши на русском.";
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -23,8 +34,8 @@ export async function onRequest(context) {
     if (url.pathname === "/api/llm" && request.method === "POST") return json(await apiLlm(request, env), 200, cors);
     if (url.pathname === "/api/llm-test" && request.method === "POST" && url.searchParams.get("secret") === env.SETUP_SECRET) {
       const body = await request.json();
-      if (url.searchParams.get("raw") === "1") return json(await orRaw(body.content, body.maxTokens, env, body.model), 200, cors);
-      return json(await llmRaw(body.content, body.maxTokens, env, body.model), 200, cors);
+      if (url.searchParams.get("raw") === "1") return json(await orRaw(body.content, body.maxTokens, env, body.model, body.system), 200, cors);
+      return json(await llmRaw(body.content, body.maxTokens, env, body.model, body.system), 200, cors);
     }
     if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, context), 200, cors);
     if (url.pathname === "/api/analyses" && request.method === "GET") return json(await apiAnalyses(url, env), 200, cors);
@@ -64,9 +75,9 @@ async function hmac(keyBytes, msgBytes) {
 /* ---------------- OpenRouter proxy ---------------- */
 
 async function apiLlm(request, env) {
-  const { initData, content, maxTokens } = await request.json();
+  const { initData, content, maxTokens, system } = await request.json();
   await verifyInitData(initData, env.BOT_TOKEN);
-  return llmRaw(content, maxTokens, env);
+  return llmRaw(content, maxTokens, env, null, system);
 }
 
 // список моделей-кандидатов: пробуем по очереди, берём первую с непустым ответом.
@@ -101,7 +112,10 @@ function extractText(d) {
   return "";
 }
 
-async function orCall(model, parts, maxTokens, env) {
+async function orCall(model, parts, maxTokens, env, system) {
+  const messages = [];
+  if (system !== "") messages.push({ role: "system", content: system || SYSTEM_MED });
+  messages.push({ role: "user", content: parts });
   const r = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
@@ -112,7 +126,7 @@ async function orCall(model, parts, maxTokens, env) {
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: "user", content: parts }],
+      messages,
       max_tokens: maxTokens || 2000,
       temperature: 0.2,
     }),
@@ -120,14 +134,14 @@ async function orCall(model, parts, maxTokens, env) {
   return { ok: r.ok, status: r.status, data: await r.json() };
 }
 
-async function orRaw(content, maxTokens, env, modelOverride) {
+async function orRaw(content, maxTokens, env, modelOverride, system) {
   const parts = toParts(content);
   const model = modelOverride || env.OPENROUTER_MODEL || MODEL_CHAIN[0];
-  const res = await orCall(model, parts, maxTokens, env);
+  const res = await orCall(model, parts, maxTokens, env, system);
   return { model, status: res.status, data: res.data };
 }
 
-async function llmRaw(content, maxTokens, env, modelOverride) {
+async function llmRaw(content, maxTokens, env, modelOverride, system) {
   const parts = toParts(content);
   if (!parts.length) throw new Error("empty content");
   const chain = modelOverride
@@ -136,7 +150,7 @@ async function llmRaw(content, maxTokens, env, modelOverride) {
   let lastErr = "no models";
   for (const model of chain) {
     try {
-      const res = await orCall(model, parts, maxTokens, env);
+      const res = await orCall(model, parts, maxTokens, env, system);
       if (!res.ok) { lastErr = "openrouter " + res.status + ": " + JSON.stringify(res.data).slice(0, 200); continue; }
       const text = extractText(res.data);
       if (text.trim()) return { text: text.trim() };
@@ -158,16 +172,23 @@ async function apiSave(request, env, ctx) {
     "INSERT INTO analyses (id, user_id, created_at, source, status, data) VALUES (?,?,?,?,?,?)"
   ).bind(id, user.id, Date.now(), source || "upload", "done", JSON.stringify(analysis || {})).run();
 
-  const attn = (analysis?.markers || []).filter((m) => m.flag && m.flag !== "normal").length;
-  const crit = (analysis?.critical || []).length;
-  let text = "🧪 Анализ распознан и расшифрован.\n";
-  if (crit) text += "⚠️ Есть показатель, с которым стоит срочно к врачу.\n";
-  else if (attn) text += `${attn} показател${attn === 1 ? "ь" : "я/ей"} требуют внимания.\n`;
-  else text += "Всё в пределах нормы.\n";
-  text += "Откройте Me — разбор простыми словами уже готов.";
+  let text;
+  if (source === "scan") {
+    text = "🩻 Снимок распознан и расшифрован.\n" +
+      (analysis?.plain_conclusion ? analysis.plain_conclusion.slice(0, 220) + "\n\n" : "") +
+      "Откройте Me — разбор простыми словами готов.";
+  } else {
+    const attn = (analysis?.markers || []).filter((m) => m.flag && m.flag !== "normal").length;
+    const crit = (analysis?.critical || []).length;
+    text = "🧪 Анализ распознан и расшифрован.\n";
+    if (crit) text += "⚠️ Есть показатель, с которым стоит срочно к врачу.\n";
+    else if (attn) text += `${attn} показател${attn === 1 ? "ь" : "я/ей"} требуют внимания.\n`;
+    else text += "Всё в пределах нормы.\n";
+    text += "Откройте Me — разбор простыми словами уже готов.";
+  }
 
   ctx.waitUntil(sendMessage(env, user.id, text, {
-    inline_keyboard: [[{ text: "Открыть разбор", web_app: { url: `${env.WEBAPP_URL}?startapp=blood_${id}` } }]],
+    inline_keyboard: [[{ text: "Открыть разбор", web_app: { url: `${env.WEBAPP_URL}?startapp=${source === "scan" ? "scan" : "blood"}_${id}` } }]],
   }));
   return { id };
 }
@@ -195,20 +216,52 @@ async function apiAnalysis(url, env) {
 
 /* ---------------- meds schedule + reminders ---------------- */
 
+// какой этап курса активен в дату dateStr (YYYY-MM-DD). Возвращает {stage, index} либо null (курс окончен).
+function medActiveStage(stages, startDate, dateStr) {
+  if (!Array.isArray(stages) || !stages.length) return null;
+  const day = (s) => Math.floor(Date.parse(s + "T00:00:00Z") / 86400000);
+  const elapsed = day(dateStr) - day(startDate || dateStr);
+  if (elapsed < 0) return null;
+  let acc = 0;
+  for (let i = 0; i < stages.length; i++) {
+    const dur = Number(stages[i].durationDays);
+    if (!Number.isFinite(dur) || dur <= 0) return { stage: stages[i], index: i }; // бессрочный этап
+    if (elapsed < acc + dur) return { stage: stages[i], index: i };
+    acc += dur;
+  }
+  return null; // прошли все конечные этапы — курс завершён
+}
+
+function normStages(m) {
+  let stages = Array.isArray(m.stages) && m.stages.length ? m.stages : null;
+  if (!stages) {
+    const times = Array.isArray(m.times) ? m.times : [];
+    stages = [{ dose: m.dosage || "", perDay: times.length || 1, times, durationDays: null, note: "" }];
+  }
+  return stages.slice(0, 12).map((s) => ({
+    dose: String(s.dose || "").slice(0, 60),
+    perDay: Number(s.perDay) || (Array.isArray(s.times) ? s.times.length : 1) || 1,
+    times: (Array.isArray(s.times) ? s.times : []).filter((t) => /^\d{2}:\d{2}$/.test(t)).slice(0, 8),
+    durationDays: Number.isFinite(Number(s.durationDays)) && Number(s.durationDays) > 0 ? Math.trunc(Number(s.durationDays)) : null,
+    durationText: String(s.durationText || "").slice(0, 40),
+    note: String(s.note || "").slice(0, 120),
+  }));
+}
+
 async function apiMedsSave(request, env) {
   const { initData, meds, tzOffset } = await request.json();
   const user = await verifyInitData(initData, env.BOT_TOKEN);
   const tz = Number.isFinite(tzOffset) ? Math.trunc(tzOffset) : 180;
-  // полная замена расписания пользователя
   await env.DB.prepare("DELETE FROM meds WHERE user_id=?").bind(user.id).run();
   const today = new Date().toISOString().slice(0, 10);
   for (const m of (meds || []).slice(0, 30)) {
-    const times = Array.isArray(m.times) ? m.times.filter((t) => /^\d{2}:\d{2}$/.test(t)) : [];
+    const stages = normStages(m);
     await env.DB.prepare(
-      "INSERT INTO meds (id, user_id, name, dosage, times, start_date, end_date, active, created_at, tz_offset) VALUES (?,?,?,?,?,?,?,1,?,?)"
+      "INSERT INTO meds (id, user_id, name, dosage, times, start_date, end_date, active, created_at, tz_offset, stages, purpose) VALUES (?,?,?,?,?,?,?,1,?,?,?,?)"
     ).bind(
       crypto.randomUUID(), user.id, String(m.name || "").slice(0, 120), String(m.dosage || "").slice(0, 80),
-      JSON.stringify(times), m.startDate || today, m.endDate || null, Date.now(), tz
+      JSON.stringify(stages[0] ? stages[0].times : []), m.startDate || today, m.endDate || null,
+      Date.now(), tz, JSON.stringify(stages), String(m.purpose || "").slice(0, 200)
     ).run();
   }
   return { ok: true, count: (meds || []).length };
@@ -217,9 +270,15 @@ async function apiMedsSave(request, env) {
 async function apiMedsList(url, env) {
   const user = await verifyInitData(url.searchParams.get("initData"), env.BOT_TOKEN);
   const { results } = await env.DB.prepare(
-    "SELECT id, name, dosage, times, start_date, end_date FROM meds WHERE user_id=? AND active=1 ORDER BY created_at ASC"
+    "SELECT id, name, dosage, times, start_date, end_date, stages, purpose FROM meds WHERE user_id=? AND active=1 ORDER BY created_at ASC"
   ).bind(user.id).all();
-  return { items: (results || []).map((r) => ({ id: r.id, name: r.name, dosage: r.dosage, times: safeParse(r.times) || [], startDate: r.start_date, endDate: r.end_date })) };
+  return {
+    items: (results || []).map((r) => ({
+      id: r.id, name: r.name, dosage: r.dosage, times: safeParse(r.times) || [],
+      startDate: r.start_date, endDate: r.end_date, purpose: r.purpose || "",
+      stages: safeParse(r.stages) || null,
+    })),
+  };
 }
 
 // вызывается по cron (Worker) каждые ~15 мин
@@ -234,16 +293,21 @@ async function apiTick(url, env, ctx) {
     const dateStr = local.toISOString().slice(0, 10);
     if (m.start_date && dateStr < m.start_date) continue;
     if (m.end_date && dateStr > m.end_date) continue;
+    const stages = safeParse(m.stages) || [{ dose: m.dosage, times: safeParse(m.times) || [], durationDays: null }];
+    const act = medActiveStage(stages, m.start_date, dateStr);
+    if (!act) continue; // курс завершён
     const nowMin = local.getUTCHours() * 60 + local.getUTCMinutes();
-    for (const t of safeParse(m.times) || []) {
+    for (const t of act.stage.times || []) {
       const [hh, mm] = t.split(":").map(Number);
       const slotMin = hh * 60 + mm;
-      if (nowMin < slotMin || nowMin - slotMin > 20) continue; // окно 20 мин после времени приёма
-      const dedupe = await env.DB.prepare("SELECT 1 FROM med_log WHERE med_id=? AND slot=? AND sent_date=?").bind(m.id, t, dateStr).first();
+      if (nowMin < slotMin || nowMin - slotMin > 20) continue;
+      const slotKey = "s" + act.index + "_" + t;
+      const dedupe = await env.DB.prepare("SELECT 1 FROM med_log WHERE med_id=? AND slot=? AND sent_date=?").bind(m.id, slotKey, dateStr).first();
       if (dedupe) continue;
-      await env.DB.prepare("INSERT INTO med_log (med_id, slot, sent_date) VALUES (?,?,?)").bind(m.id, t, dateStr).run();
+      await env.DB.prepare("INSERT INTO med_log (med_id, slot, sent_date) VALUES (?,?,?)").bind(m.id, slotKey, dateStr).run();
+      const dose = act.stage.dose || m.dosage || "";
       ctx.waitUntil(sendMessage(env, m.user_id,
-        `💊 <b>Время принять лекарство</b>\n${m.name}${m.dosage ? " — " + m.dosage : ""}\n\nОткройте Me и отметьте приём.`,
+        `💊 <b>Пора принять: ${m.name}</b>${dose ? "\n" + dose : ""}\n\nОткройте Me и отметьте приём.`,
         { inline_keyboard: [[{ text: "Открыть Me", web_app: { url: env.WEBAPP_URL } }]] }));
       sent++;
     }
