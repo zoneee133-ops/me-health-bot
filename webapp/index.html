@@ -7,7 +7,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
   /* адрес backend (Cloudflare Worker). Заполни после `wrangler deploy`. */
-  window.ME_API = "https://me-backend.YOUR-SUBDOMAIN.workers.dev";
+  window.ME_API = window.location.origin; /* backend = тот же origin (Pages Functions) */
 </script>
 <style>
   :root{
@@ -51,6 +51,13 @@
     padding: calc(max(0px, env(safe-area-inset-top, 0px)) + 12px) 26px 6px;
     font-size:14px; font-weight:600; flex-shrink:0;
   }
+  /* внутри Telegram Mini App — на весь экран, без рамки-телефона */
+  body.tg{ padding:0; margin:0; background:var(--bg); display:block; }
+  body.tg .device{
+    width:100%; max-width:none; height:100vh; height:100dvh; max-height:none;
+    border:none; border-radius:0; box-shadow:none;
+  }
+  body.tg .statusbar{ display:none; }
   .screens{ flex:1; position:relative; overflow:hidden; }
   .screen{
     position:absolute; inset:0; overflow-y:auto;
@@ -931,6 +938,14 @@
   .mail-collect .mc-title{ display:block; font-size:15px; font-weight:600; color:var(--ink); }
   .mail-collect .mc-sub{ display:block; font-size:12.5px; color:var(--ink-2); margin-top:2px; line-height:1.35; }
   .mail-collect .chevron{ color:var(--ink-3); font-size:17px; flex-shrink:0; }
+  .mail-collect.is-soon{ opacity:0.6; cursor:default; }
+  .mail-collect.is-soon:active{ transform:none; background:var(--surface); }
+  .soon-badge{ flex-shrink:0; font-size:11px; font-weight:700; letter-spacing:0.03em;
+    color:var(--ink-3); background:var(--surface-soft); border-radius:999px; padding:4px 10px; }
+  .soon-card{ background:var(--surface); border-radius:var(--radius-m); padding:16px 18px;
+    box-shadow:var(--shadow-soft); margin-bottom:12px; opacity:0.75; }
+  .soon-card .sc-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .fam-empty{ font-size:13px; color:var(--ink-2); line-height:1.5; margin:0 0 12px; }
 
   /* minimal empty state — no "нет данных", the slot invites the fill */
   .status-card.is-empty{ justify-content:flex-start; gap:12px; }
@@ -1052,17 +1067,17 @@
 
       <p class="section-label" style="margin-top:28px;">Добавить данные</p>
       <button class="cta accent has-ic" id="todayUploadBlood" style="margin-top:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>Загрузить анализ</button>
-      <button class="mail-collect" id="todayOpenHealth">
+      <div class="mail-collect is-soon" id="todayOpenHealth" aria-disabled="true">
         <span class="mc-logos">
           <span class="brand-gmail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>
           <span class="brand-yandex">Я</span>
         </span>
         <span class="mc-text">
           <span class="mc-title">Автосбор из почты</span>
-          <span class="mc-sub">Gmail и Яндекс · анализы прямо из писем</span>
+          <span class="mc-sub">Gmail и Яндекс</span>
         </span>
-        <span class="chevron">›</span>
-      </button>
+        <span class="soon-badge">Скоро</span>
+      </div>
       <p class="disclaimer footer-disclaimer">Me не ставит диагнозы. Пожалуйста, обсудите эти изменения с вашим врачом.</p>
     </div>
 
@@ -1127,7 +1142,7 @@
           <p class="u-title">Сфотографировать рецепт</p>
           <p class="u-sub">Даже неразборчивый почерк — попробуем распознать</p>
         </label>
-        <input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment">
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
 
         <label class="upload-zone" for="fileInputFile" id="fileLabel">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="margin:0 auto;display:block;color:var(--ink);">
@@ -1135,9 +1150,9 @@
             <path d="M14 2v6h6M12 18v-6M9 15h6"/>
           </svg>
           <p class="u-title">Загрузить из файлов</p>
-          <p class="u-sub">PDF, фото или скан</p>
+          <p class="u-sub">Фото или скан бланка</p>
         </label>
-        <input type="file" id="fileInputFile" accept="image/*,application/pdf">
+        <input type="file" id="fileInputFile" accept="image/*">
 
         <div id="uploadPreviewWrap" style="display:none; margin-top:4px; margin-bottom:10px; border-radius:16px; overflow:hidden; border:1px solid var(--border);">
           <img id="uploadPreviewImg" style="width:100%; display:block; max-height:170px; object-fit:cover;">
@@ -1172,24 +1187,17 @@
     <div class="screen" id="screen-profile">
       <h1 class="title">Профиль</h1>
       <div class="card" style="display:flex; align-items:center; gap:14px; margin-bottom:22px;">
-        <div class="profile-avatar-sm">Р</div>
-        <div><p style="margin:0;font-size:16px;font-weight:700;">Роберт</p><p style="margin:2px 0 0;font-size:13px;color:var(--ink-2);">Ростов-на-Дону</p></div>
+        <div class="profile-avatar-sm" id="profileAva">U</div>
+        <div><p style="margin:0;font-size:16px;font-weight:700;" id="profileName">Профиль</p><p style="margin:2px 0 0;font-size:13px;color:var(--ink-2);" id="profileCity">Telegram</p></div>
       </div>
 
       <p class="section-label">Семья</p>
-      <div id="familyList">
-        <div class="row" data-relative="mama">
-          <div class="r-lead"><span class="fam-ava">М</span><div class="r-main"><p class="r-title">Мама</p><p class="r-sub" id="mamaUpd">Обновлено сегодня, 8:30</p></div></div>
-          <span class="fam-status">в норме</span>
-        </div>
-      </div>
+      <div id="familyList"></div>
+      <p class="fam-empty" id="familyEmpty">Пока никого. Пригласите близкого — сможете следить за его показателями, а он за вашими.</p>
       <button class="fam-add" id="familyInvite"><span class="fa-plus">+</span>Пригласить близкого</button>
 
-      <p class="section-label">Подключения</p>
-      <div class="row" style="cursor:default;"><div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-4.35-9.5-8.8C.7 8.7 2 5 5.4 4.4 7.7 4 9.8 5 12 7.3 14.2 5 16.3 4 18.6 4.4 22 5 23.3 8.7 21.5 12.2 19 16.65 12 21 12 21z"/></svg></span><div class="r-main"><p class="r-title">Apple Health</p><p class="r-sub">Подключено</p></div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
-
       <p class="section-label">Уведомления</p>
-      <div class="row" style="cursor:default;"><div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></span><div class="r-main"><p class="r-title">Напоминания о приёме</p><p class="r-sub">Лекарства по расписанию</p></div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+      <div class="row" style="cursor:default;"><div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></span><div class="r-main"><p class="r-title">Напоминания о приёме</p><p class="r-sub">Лекарства по расписанию</p></div></div><label class="switch"><input type="checkbox" id="prefNotify" checked><span class="slider"></span></label></div>
 
       <p class="section-label">Главный экран</p>
       <div class="row" style="cursor:default;">
@@ -1205,7 +1213,7 @@
 
       <p class="section-label">О приложении</p>
       <div class="row" style="cursor:default;"><div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><div class="r-main"><p class="r-title">Конфиденциальность данных</p><p class="r-sub">Ваши медданные не передаются третьим лицам</p></div></div></div>
-      <div class="row" style="cursor:default;"><div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span><div class="r-main"><p class="r-title">Версия</p><p class="r-sub">Me v6.0 · MVP</p></div></div></div>
+      <div class="row" style="cursor:default;"><div class="r-lead"><span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span><div class="r-main"><p class="r-title">Версия</p><p class="r-sub">Me · бета</p></div></div></div>
       <p class="disclaimer">Me — справочный инструмент, не заменяет консультацию врача.</p>
     </div>
 
@@ -1219,30 +1227,18 @@
       <div class="detail-header"><button class="back-btn" data-close="detail-bloodtests"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Назад</button><span class="detail-header-title">Анализы крови</span></div>
       <div class="detail-body">
         <h1 class="title" style="margin-top:2px;">Анализы крови</h1>
-        <p class="subtitle" style="margin-bottom:18px;">Загрузите сами или подключите почту</p>
+        <p class="subtitle" style="margin-bottom:18px;">Сфотографируйте бланк — Me распознает показатели и объяснит каждый простыми словами</p>
 
         <div class="card" style="margin-bottom:12px; padding:18px 16px;">
-          <p style="margin:0 0 4px; font-size:15px; font-weight:600;">Загрузить вручную</p>
-          <p style="margin:0 0 14px; font-size:13px; color:var(--ink-2);">PDF, фото или скан — Me сам разберёт показатели</p>
-          <label class="cta accent" style="display:block; text-align:center; padding:13px; margin:0; cursor:pointer;" for="bloodFileInput">Загрузить анализ</label>
-          <input type="file" id="bloodFileInput" accept="image/*,application/pdf">
+          <p style="margin:0 0 4px; font-size:15px; font-weight:600;">Загрузить фото или скан</p>
+          <p style="margin:0 0 14px; font-size:13px; color:var(--ink-2);">Печатный бланк или разборчивый почерк. Даже фото с телефона.</p>
+          <label class="cta accent" style="display:block; text-align:center; padding:13px; margin:0; cursor:pointer;" for="bloodFileInput">Выбрать фото</label>
+          <input type="file" id="bloodFileInput" accept="image/*">
         </div>
 
-        <div class="card" style="margin-bottom:12px; padding:18px 16px;" id="emailConnectCard">
-          <p class="mail-h">Почта</p>
-          <p class="mail-sub" id="mailIntro">Me найдёт анализы и заключения в письмах</p>
-          <div id="mailList"></div>
-          <div id="mailPicker">
-            <button class="cta brand" id="connectGmailBtn" style="margin:0 0 8px; padding:12px 14px;"><span class="brand-ic brand-gmail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>Google / Gmail</button>
-            <button class="cta brand" id="connectYandexBtn" style="margin:0; padding:12px 14px;"><span class="brand-ic brand-yandex">Я</span>Яндекс.Почта</button>
-          </div>
-          <button class="mail-add" id="mailAddBtn" style="display:none;"><span class="ma-plus">+</span>Добавить ещё одну</button>
-        </div>
-
-        <div id="emailFoundWrap" style="display:none;">
-          <p class="section-label">Мы нашли медицинские документы</p>
-          <div id="emailFoundList"></div>
-          <p style="font-size:12.5px; color:var(--ink-3); margin:12px 0 0; line-height:1.4;">Документы добавляются только после вашего подтверждения.</p>
+        <div class="soon-card">
+          <div class="sc-head"><p class="mail-h" style="margin:0;">Автосбор из почты</p><span class="soon-badge">Скоро</span></div>
+          <p class="mail-sub" style="margin:8px 0 0;">Подключите Gmail или Яндекс — Me сам найдёт анализы в письмах.</p>
         </div>
 
         <div id="bloodAnalyzing" style="display:none;"></div>
@@ -1304,7 +1300,7 @@
             <p class="u-title">Загрузить рецепт / бланк</p>
             <p class="u-sub">Фото рукописного рецепта — Me распознает препараты и дозировки</p>
           </label>
-          <input type="file" id="visitRxInput" accept="image/*,application/pdf" capture="environment">
+          <input type="file" id="visitRxInput" accept="image/*" capture="environment">
           <div class="inline-status" id="visitRxStatus" style="display:none;"><div class="spinner"></div><span>Читаю рецепт…</span></div>
         </div>
 
@@ -1317,34 +1313,6 @@
     <div class="detail-screen" id="detail-visitresult">
       <div class="detail-header"><button class="back-btn" data-close="detail-visitresult"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Назад</button><span class="detail-header-title">Визит</span></div>
       <div class="detail-body" id="visitResultBody"></div>
-    </div>
-
-    <!-- Relative's shared health -->
-    <div class="detail-screen" id="detail-relative">
-      <div class="detail-header"><button class="back-btn" data-close="detail-relative"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Назад</button><span class="detail-header-title" id="relHdr">Мама</span></div>
-      <div class="detail-body">
-        <h1 class="title" style="margin-top:2px;" id="relName">Мама</h1>
-        <p class="subtitle" id="relUpdFull">Делится показателями с вами · обновлено сегодня, 8:30</p>
-        <div class="status-grid" style="margin-top:8px;">
-          <div class="status-card">
-            <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-4.35-9.5-8.8C.7 8.7 2 5 5.4 4.4 7.7 4 9.8 5 12 7.3 14.2 5 16.3 4 18.6 4.4 22 5 23.3 8.7 21.5 12.2 19 16.65 12 21 12 21z"/></svg></span>
-            <p class="sc-label">Давление</p><p class="sc-main">128 / 82</p><p class="sc-sub">сегодня утром</p>
-          </div>
-          <div class="status-card">
-            <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3s6 7 6 11a6 6 0 01-12 0c0-4 6-11 6-11z"/></svg></span>
-            <p class="sc-label">Сахар</p><p class="sc-main">5.6 <span style="font-size:12px;color:var(--ink-3)">ммоль/л</span></p><p class="sc-sub">натощак</p>
-          </div>
-          <div class="status-card">
-            <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
-            <p class="sc-label">Пульс</p><p class="sc-main">72</p><p class="sc-sub">в покое</p>
-          </div>
-          <div class="status-card">
-            <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10.5 20.5l10-10a4.95 4.95 0 10-7-7l-10 10a4.95 4.95 0 107 7z"/><path d="M8.5 8.5l7 7"/></svg></span>
-            <p class="sc-label">Лекарства</p><p class="sc-main">2 из 3</p><p class="sc-sub">приняты сегодня</p>
-          </div>
-        </div>
-        <div class="care-note" style="margin-top:18px;">Вы видите только то, чем Мама решила поделиться. Состав показателей меняется на её устройстве. Уведомим, если что-то выйдет за норму.</div>
-      </div>
     </div>
 
     <!-- Manual medication wizard -->
@@ -1468,7 +1436,7 @@ async function claudeMessage(content, maxTokens){
   var tg = window.Telegram && window.Telegram.WebApp;
   var API = window.ME_API || '';
   var initData = (tg && tg.initData) || '';
-  if (!API || !initData) throw new Error('offline'); // вне Telegram / backend не настроен
+  if (!initData) throw new Error("offline");
   const response = await fetch(API + '/api/llm', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ initData: initData, content: content, maxTokens: maxTokens || 700 })
@@ -1534,7 +1502,7 @@ if (todayUploadBloodEl) todayUploadBloodEl.addEventListener('click', function() 
 });
 var todayOpenHealthEl = document.getElementById('todayOpenHealth');
 if (todayOpenHealthEl) todayOpenHealthEl.addEventListener('click', function() {
-  goTo('health'); renderBloodTestsList(); openDetail('detail-bloodtests');
+  if (typeof showToast === 'function') showToast('Автосбор из почты скоро появится');
 });
 
 var askBackBtnEl = document.getElementById('askBackBtn');
@@ -1576,7 +1544,9 @@ function updateGreeting(){
   if (h >= 12 && h < 17) greet = 'Добрый день';
   else if (h >= 17) greet = 'Добрый вечер';
   const el = document.getElementById('greetLine');
-  if (el) el.textContent = greet + ', Роберт';
+  var tgu = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) || null;
+  var nm = tgu && tgu.first_name ? tgu.first_name.trim() : '';
+  if (el) el.textContent = nm ? (greet + ', ' + nm) : greet;
 }
 
 function currentHHMM(){
@@ -1913,191 +1883,40 @@ function renderBloodTestsList(){
 }
 
 document.getElementById('bloodFileInput').addEventListener('change', async () => {
-  const file = document.getElementById('bloodFileInput').files[0];
+  const input = document.getElementById('bloodFileInput');
+  const file = input.files[0];
   if (!file) return;
-  if (file.type === 'application/pdf') {
-    // For MVP we simulate PDF processing with a demo result
-    processBloodDemo('СЕГОДНЯ', true);
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const base64 = e.target.result.split(',')[1];
-    document.getElementById('bloodAnalyzing').style.display = 'block';
-    document.getElementById('bloodAnalyzing').innerHTML = `
-      <div class="analyzing-box">
-        <div class="analyzing-spinner"></div>
-        <p class="a-strong">Анализирую результаты…</p>
-      </div>`;
-    document.getElementById('bloodTestsListWrap').style.display = 'none';
-    try {
-      const raw = await claudeMessage([
-        { type:'image', source:{ type:'base64', media_type:file.type, data:base64 } },
-        { type:'text', text:'Это фото/скан результатов анализа крови (печатный или рукописный, возможно плохое качество). Извлеки показатели максимально точно. Ответь СТРОГО JSON без markdown, на русском:\n{"date":"дата в формате ДД МЕС ГГГГ или СЕГОДНЯ","markers":[{"name":"название по-русски","value":"значение с единицами","flag":"high"|"low"|"normal","plain":"1-2 предложения простыми словами что это и что значит это значение, без диагнозов"}],"summary":"2-3 предложения человеческим языком: общая картина и на что обратить внимание, без диагнозов"}\nНе выдумывай показатели, которых нет на фото. Пиши понятно для пожилого человека.' }
-      ], 2000);
-      const parsed = JSON.parse(stripFence(raw));
-      const bt = addBloodTest(parsed);
-      showToast('Анализ распознан');
-      openBloodResult(bt.id);
-      if (window.__meSave) window.__meSave(parsed, 'upload');
-    } catch(err){
-      document.getElementById('bloodAnalyzing').innerHTML = `<div class="error-box">Не получилось распознать документ. Попробуйте другое фото.</div>`;
-      setTimeout(() => { document.getElementById('bloodAnalyzing').style.display='none'; document.getElementById('bloodTestsListWrap').style.display='block'; }, 2200);
-      return;
-    }
-    document.getElementById('bloodAnalyzing').style.display = 'none';
-    document.getElementById('bloodTestsListWrap').style.display = 'block';
-  };
-  reader.readAsDataURL(file);
-});
-
-/* Email connect simulation */
-const demoEmailDocs = [
-  { id:'ed1', title:'Анализ крови', date:'14 августа', type:'blood', selected:false },
-  { id:'ed2', title:'Анализ крови', date:'2 июня', type:'blood', selected:false },
-  { id:'ed3', title:'Медицинское заключение', date:'18 мая', type:'report', selected:false }
-];
-
-function renderEmailFound(){
-  const list = document.getElementById('emailFoundList');
-  list.innerHTML = demoEmailDocs.map(d => `
-    <div class="card" style="margin-bottom:10px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-      <div style="min-width:0;">
-        <p style="margin:0; font-size:15px; font-weight:600;">${d.title}</p>
-        <p style="margin:3px 0 0; font-size:13px; color:var(--ink-2);">${d.date}</p>
-      </div>
-      <div style="display:flex; gap:8px; flex-shrink:0;">
-        <button class="cta secondary" style="margin:0; padding:9px 14px; font-size:13px; width:auto;" data-skip="${d.id}">Пропустить</button>
-        <button class="cta accent" style="margin:0; padding:9px 14px; font-size:13px; width:auto;" data-add="${d.id}">Добавить</button>
-      </div>
-    </div>
-  `).join('');
-  list.querySelectorAll('[data-add]').forEach(btn => btn.addEventListener('click', () => confirmEmailDoc(btn.dataset.add)));
-  list.querySelectorAll('[data-skip]').forEach(btn => btn.addEventListener('click', () => skipEmailDoc(btn.dataset.skip)));
-}
-
-function confirmEmailDoc(id){
-  const doc = demoEmailDocs.find(d => d.id === id);
-  if (!doc) return;
-  processBloodDemo(doc.date, true);
-  skipEmailDoc(id);
-  showToast('Документ добавлен');
-}
-
-function skipEmailDoc(id){
-  const idx = demoEmailDocs.findIndex(d => d.id === id);
-  if (idx > -1) demoEmailDocs.splice(idx, 1);
-  if (!demoEmailDocs.length) {
-    document.getElementById('emailFoundWrap').style.display = 'none';
-  } else {
-    renderEmailFound();
-  }
-}
-
-function processBloodDemo(dateLabel, fromEmail){
-  document.getElementById('bloodAnalyzing').style.display = 'block';
-  document.getElementById('bloodAnalyzing').innerHTML = `
-    <div class="analyzing-box">
-      <div class="analyzing-spinner"></div>
-      <p class="a-strong">Обрабатываю документ…</p>
-      <p style="font-size:13px;color:var(--ink-2);margin-top:6px;">Распознаю показатели и сравниваю с предыдущими</p>
-    </div>`;
-  document.getElementById('bloodTestsListWrap').style.display = 'none';
-  setTimeout(() => {
-    const parsed = {
-      date: dateLabel.includes('авг') || dateLabel.includes('июн') || dateLabel.includes('мая') ? dateLabel + ' 2026' : '18 АВГ 2026',
-      markers: [
-        { name:'Гемоглобин', value:'142 г/л', flag:'normal' },
-        { name:'Эритроциты', value:'4.8 ×10¹²/л', flag:'normal' },
-        { name:'Лейкоциты', value:'11.2 ×10⁹/л', flag:'high' },
-        { name:'Тромбоциты', value:'210 ×10⁹/л', flag:'normal' },
-        { name:'СОЭ', value:'18 мм/ч', flag:'high' },
-        { name:'Глюкоза', value:'5.1 ммоль/л', flag:'normal' },
-        { name:'Холестерин общий', value:'5.8 ммоль/л', flag:'high' },
-        { name:'АЛТ', value:'28 Ед/л', flag:'normal' },
-        { name:'АСТ', value:'24 Ед/л', flag:'normal' },
-        { name:'Креатинин', value:'82 мкмоль/л', flag:'normal' }
-      ]
-    };
+  input.value = '';
+  const box = document.getElementById('bloodAnalyzing');
+  const listWrap = document.getElementById('bloodTestsListWrap');
+  box.style.display = 'block';
+  box.innerHTML = '<div class="analyzing-box"><div class="analyzing-spinner"></div><p class="a-strong">Распознаю анализ…</p><p style="font-size:13px;color:var(--ink-2);margin-top:6px;">ИИ читает бланк и объясняет каждый показатель простыми словами</p></div>';
+  if (listWrap) listWrap.style.display = 'none';
+  try {
+    const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
+    const raw = await claudeMessage([
+      { type:'image', source:{ type:'base64', media_type:file.type || 'image/jpeg', data:base64 } },
+      { type:'text', text:'Это фото или скан результатов анализа крови/биохимии (печатный бланк или почерк, возможно плохое качество). Распознай максимально точно. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"показатель по-русски","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"1-2 предложения простыми словами: что это за показатель и что значит именно это значение, без диагнозов и паники"}],"summary":"2-3 предложения человеческим языком: общая картина, на что обратить внимание, без диагнозов"}\nНе выдумывай показатели, которых нет на изображении. Пиши понятно для пожилого человека. Только JSON.' }
+    ], 2500);
+    const parsed = JSON.parse(stripFence(raw));
+    if (!parsed.markers || !parsed.markers.length) throw new Error('no markers');
     const bt = addBloodTest(parsed);
-    document.getElementById('bloodAnalyzing').style.display = 'none';
-    document.getElementById('bloodTestsListWrap').style.display = 'block';
-    showToast(fromEmail ? 'Анализ из почты добавлен' : 'Анализ обработан');
+    box.style.display = 'none';
+    if (listWrap) listWrap.style.display = 'block';
+    showToast('Анализ распознан');
     openBloodResult(bt.id);
-  }, 1600);
-}
-
-/* ---- connected mailboxes (supports multiple accounts) ---- */
-state.mailAccounts = state.mailAccounts || [];
-var MAIL_META = {
-  gmail:  { label:'Gmail',        email:'robert@gmail.com',
-            ic:'<span class="brand-ic brand-gmail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>' },
-  yandex: { label:'Яндекс.Почта', email:'robert@yandex.ru',
-            ic:'<span class="brand-ic brand-yandex">Я</span>' }
-};
-function renderMailAccounts(){
-  var list = document.getElementById('mailList');
-  var intro = document.getElementById('mailIntro');
-  var picker = document.getElementById('mailPicker');
-  var addBtn = document.getElementById('mailAddBtn');
-  var has = state.mailAccounts.length > 0;
-  list.innerHTML = state.mailAccounts.map(function(a){
-    var m = MAIL_META[a.provider] || {};
-    return '<div class="mail-acc">' + (m.ic || '') +
-      '<span class="ma-mail">' + a.email + '</span>' +
-      '<span class="ma-ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg></span></div>';
-  }).join('');
-  intro.style.display = has ? 'none' : '';
-  picker.style.display = has ? 'none' : '';
-  addBtn.style.display = has ? 'flex' : 'none';
-}
-function connectMail(provider){
-  var m = MAIL_META[provider];
-  if (!state.mailAccounts.some(function(a){ return a.provider === provider; })){
-    state.mailAccounts.push({ provider: provider, email: m.email });
+    if (window.__meSave) window.__meSave(parsed, 'upload');
+  } catch (err) {
+    box.innerHTML = '<div class="error-box">Не получилось распознать. Сфотографируйте бланк крупнее, при хорошем свете, без бликов — и попробуйте ещё раз.</div>';
+    setTimeout(() => { box.style.display = 'none'; if (listWrap) listWrap.style.display = 'block'; }, 3500);
   }
-  renderMailAccounts();
-  document.getElementById('emailFoundWrap').style.display = 'block';
-  renderEmailFound();
-  showToast(m.label + ' подключена');
-}
-document.getElementById('connectGmailBtn').addEventListener('click', function(){ connectMail('gmail'); });
-document.getElementById('connectYandexBtn').addEventListener('click', function(){ connectMail('yandex'); });
-document.getElementById('mailAddBtn').addEventListener('click', function(){
-  document.getElementById('mailPicker').style.display = '';
-  this.style.display = 'none';
 });
-renderMailAccounts();
 
-/* ---- family: follow a relative, invite by link ---- */
-var INVITE_URL = 'https://me.health/join/8KQ2-7F';
-document.querySelectorAll('[data-relative]').forEach(function(el){
-  el.addEventListener('click', function(){ openDetail('detail-relative'); });
-});
-var familyInviteBtn = document.getElementById('familyInvite');
-if (familyInviteBtn) familyInviteBtn.addEventListener('click', function(){
-  openSheet(
-    '<p class="sheet-title">Пригласить близкого</p>' +
-    '<p class="sheet-sub">Отправьте ссылку — например, маме. Она откроет её, установит Me и сможет делиться своими показателями с вами. Доступ можно отозвать в любой момент.</p>' +
-    '<div class="invite-link"><input id="inviteLinkField" readonly value="me.health/join/8KQ2-7F"><button id="inviteCopyBtn" type="button">Копировать</button></div>' +
-    '<button class="cta accent" id="inviteShareBtn" type="button" style="margin-top:6px;">Поделиться ссылкой</button>'
-  );
-  var copyBtn = document.getElementById('inviteCopyBtn');
-  copyBtn.addEventListener('click', function(){
-    var f = document.getElementById('inviteLinkField');
-    f.select(); f.setSelectionRange(0, 99);
-    if (navigator.clipboard) navigator.clipboard.writeText(INVITE_URL).catch(function(){});
-    copyBtn.textContent = 'Скопировано';
-  });
-  document.getElementById('inviteShareBtn').addEventListener('click', function(){
-    if (navigator.share){
-      navigator.share({ title: 'Me — доступ к показателям здоровья', url: INVITE_URL }).catch(function(){});
-    } else {
-      if (navigator.clipboard) navigator.clipboard.writeText(INVITE_URL).catch(function(){});
-      showToast('Ссылка скопирована');
-    }
-  });
-});
+/* семейный доступ — ждёт бэкенда, пока недоступно */
+(function(){
+  var b = document.getElementById('familyInvite');
+  if (b) b.addEventListener('click', function(){ if (typeof showToast === 'function') showToast('Семейный доступ скоро появится'); });
+})();
 
 function isCriticalMarker(m){
   // Simple critical thresholds for demo safety alerts (not diagnoses)
@@ -2648,12 +2467,7 @@ if (visitRxInput) {
           showToast('Не удалось прочитать рецепт');
         }
       } else {
-        // PDF demo parse
-        const demo = 'Амоксициллин 500 мг · 2 раза в день';
-        document.getElementById('visitAnswerInput').value = demo;
-        pendingVisit[visitQuestions[visitQIndex].key] = demo;
-        addMedication({ name:'Амоксициллин', dosage:'500 мг', frequency_per_day:2, suggested_times:['09:00','21:00'] });
-        showToast('Рецепт распознан');
+        showToast('Загрузите фото — PDF пока не поддерживается');
       }
     } catch(e) {
       showToast('Не получилось распознать — введите текстом');
@@ -3258,13 +3072,31 @@ function showToast(msg){
   var tg = window.Telegram && window.Telegram.WebApp;
   var API = window.ME_API || '';
   var initData = (tg && tg.initData) || '';
-  var LIVE = !!(API && initData && API.indexOf('YOUR-SUBDOMAIN') === -1);
+  var LIVE = !!initData;
 
   if (tg){
+    document.body.classList.add('tg');
     tg.ready();
     tg.expand();
     try { tg.setHeaderColor('#F0E7D5'); tg.setBackgroundColor('#E4D9C1'); } catch(e){}
     try { tg.enableClosingConfirmation(); } catch(e){}
+    // реальное имя пользователя Telegram
+    var u = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+    var name = (u.first_name || '').trim();
+    if (name) {
+      var greetEl = document.getElementById('greetLine');
+      if (greetEl) {
+        var h = new Date().getHours();
+        var g = h < 12 ? 'Доброе утро' : (h < 17 ? 'Добрый день' : 'Добрый вечер');
+        greetEl.textContent = g + ', ' + name;
+      }
+      var pName = document.getElementById('profileName');
+      if (pName) pName.textContent = name + (u.last_name ? ' ' + u.last_name : '');
+      var pAva = document.getElementById('profileAva');
+      if (pAva) pAva.textContent = name[0].toUpperCase();
+      var pCity = document.getElementById('profileCity');
+      if (pCity) pCity.textContent = u.username ? '@' + u.username : 'Telegram';
+    }
   }
   function haptic(kind){ try { tg && tg.HapticFeedback.impactOccurred(kind || 'light'); } catch(e){} }
   window.__haptic = haptic;

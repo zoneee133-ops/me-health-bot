@@ -1,0 +1,11 @@
+name = "me-webapp"
+pages_build_output_dir = "."
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "me"
+database_id = "b291ba5c-dcf8-47fb-a24e-21648c05f332"
+
+[vars]
+WEBAPP_URL = "https://me-webapp.pages.dev"

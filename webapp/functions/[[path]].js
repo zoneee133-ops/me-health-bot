@@ -1,52 +1,34 @@
 /**
- * Me — Telegram Mini App backend (Cloudflare Worker)
- * ИИ: OpenRouter (бесплатные модели). Без Google, без терминала — всё в дашборде Cloudflare.
- *
- *   POST /api/llm       { initData, content, maxTokens }   -> ИИ-прокси на OpenRouter
- *                        content: строка ИЛИ [{type:"text",text}|{type:"image",source:{media_type,data}}]
- *   POST /api/save      { initData, analysis, source }      -> сохранить разбор в D1 + пуш в бот -> { id }
- *   GET  /api/analyses?initData=...                         -> список разборов пользователя
- *   GET  /api/analysis?id=...&initData=...                  -> один разбор
- *   POST /webhook       (Telegram update)                   -> /start, /help
- *   GET  /setup?secret=SETUP_SECRET                         -> вебхук, команды, описания, кнопка-меню
- *
- * Vars / Secrets (Settings -> Variables в дашборде воркера):
- *   BOT_TOKEN         (secret)  — токен бота из @BotFather
- *   OPENROUTER_KEY    (secret)  — ключ с openrouter.ai
- *   SETUP_SECRET      (secret)  — любая строка, напр. me8fk29
- *   WEBAPP_URL        (plain)   — https-адрес Mini App (Cloudflare Pages)
- *   OPENROUTER_MODEL  (plain, необязательно) — по умолчанию бесплатная vision-модель
- * Bindings:
- *   DB  — D1 database (Settings -> Bindings)
+ * Me backend as Cloudflare Pages Functions (workers.dev заблокирован в РФ, pages.dev — нет).
+ * Роуты ограничены в webapp/_routes.json: /api/*, /webhook, /setup.
+ * env приходит из Pages project: binding DB (D1), vars/secrets BOT_TOKEN / OPENROUTER_KEY / SETUP_SECRET / WEBAPP_URL.
  */
 
 const DEFAULT_MODEL = "qwen/qwen2.5-vl-72b-instruct:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const cors = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    };
-    if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+export async function onRequest(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
-    try {
-      if (url.pathname === "/webhook" && request.method === "POST") return handleWebhook(request, env);
-      if (url.pathname === "/setup") return handleSetup(url, env);
-      if (url.pathname === "/api/llm" && request.method === "POST") return json(await apiLlm(request, env), 200, cors);
-      if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, ctx), 200, cors);
-      if (url.pathname === "/api/analyses" && request.method === "GET") return json(await apiAnalyses(url, env), 200, cors);
-      if (url.pathname === "/api/analysis" && request.method === "GET") return json(await apiAnalysis(url, env), 200, cors);
-      if (url.pathname === "/") return new Response("Me backend OK");
-      return json({ error: "not found" }, 404, cors);
-    } catch (e) {
-      return json({ error: String((e && e.message) || e) }, 500, cors);
-    }
-  },
-};
+  try {
+    if (url.pathname === "/webhook" && request.method === "POST") return handleWebhook(request, env);
+    if (url.pathname === "/setup") return handleSetup(url, env);
+    if (url.pathname === "/api/llm" && request.method === "POST") return json(await apiLlm(request, env), 200, cors);
+    if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, context), 200, cors);
+    if (url.pathname === "/api/analyses" && request.method === "GET") return json(await apiAnalyses(url, env), 200, cors);
+    if (url.pathname === "/api/analysis" && request.method === "GET") return json(await apiAnalysis(url, env), 200, cors);
+    return json({ error: "not found" }, 404, cors);
+  } catch (e) {
+    return json({ error: String((e && e.message) || e) }, 500, cors);
+  }
+}
 
 /* ---------------- Telegram initData ---------------- */
 
@@ -194,20 +176,19 @@ async function sendMessage(env, chatId, text, replyMarkup) {
   return r.json();
 }
 
-const WORKER_URL = "https://me-backend.zoneee133.workers.dev";
-
 async function handleSetup(url, env) {
   if (url.searchParams.get("secret") !== env.SETUP_SECRET) return new Response("forbidden", { status: 403 });
+  const site = env.WEBAPP_URL || url.origin;
   const base = `https://api.telegram.org/bot${env.BOT_TOKEN}`;
   const call = (m, b) => fetch(`${base}/${m}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then((r) => r.json());
   const out = {};
-  out.webhook = await call("setWebhook", { url: `${WORKER_URL}/webhook`, allowed_updates: ["message"], drop_pending_updates: true });
+  out.webhook = await call("setWebhook", { url: `${site}/webhook`, allowed_updates: ["message"], drop_pending_updates: true });
   out.webhookInfo = await call("getWebhookInfo", {});
   out.commands = await call("setMyCommands", { commands: [
     { command: "start", description: "Открыть приложение Me" },
     { command: "help", description: "Как это работает" },
   ] });
-  out.menuButton = await call("setChatMenuButton", { menu_button: { type: "web_app", text: "Открыть Me", web_app: { url: env.WEBAPP_URL } } });
+  out.menuButton = await call("setChatMenuButton", { menu_button: { type: "web_app", text: "Открыть Me", web_app: { url: site } } });
   out.shortDescription = await call("setMyShortDescription", { short_description: "Понимает ваши анализы и рецепты — объясняет простыми словами." });
   out.description = await call("setMyDescription", { description:
     "Me переводит медицинские данные на понятный язык. Сфотографируйте анализ или рецепт — приложение распознаёт показатели и объясняет каждый простыми словами, строит календарь приёма лекарств, фиксирует визиты к врачу и собирает отчёт для приёма. Есть чат по вашим данным и доступ для близких." });

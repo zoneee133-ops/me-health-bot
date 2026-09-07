@@ -1,5 +1,7 @@
 .DS_Store
 node_modules/
-worker/.dev.vars
+.wrangler/
+webapp/.wrangler/
 worker/.wrangler/
+worker/.dev.vars
 *.pptx
