@@ -13,8 +13,8 @@ const SYSTEM_MED =
   "Правила:\n" +
   "1. Никакого жаргона. Любой медицинский термин — сразу расшифровывай простыми словами в скобках.\n" +
   "2. Отвечай на ЛЮБЫЕ вопросы о здоровье, лекарствах, болезнях, травмах, обследованиях и вариантах лечения (включая операции). НЕ отказывайся. Если спрашивают про операции — перечисли варианты, как каждый проходит, чем отличаются, насколько сложные, когда применяются.\n" +
-  "3. Отвечай развёрнуто и по делу. Разбивай на короткие абзацы, при перечислении — списки через «— ». НЕ используй markdown (никаких #, *, **, ###). Только простой текст. Не лей воду.\n" +
-  "4. Ты не заменяешь врача и не ставишь диагноз. Добавляй короткое напоминание обсудить с врачом — но НЕ вместо ответа, а в дополнение.\n" +
+  "3. ПО УМОЛЧАНИЮ отвечай КОРОТКО: 2-5 небольших абзацев, только суть и практические выводы. НЕ пиши учебник, не расписывай базовые определения, если не просят. Разворачивай подробно (перечень вариантов, сравнение, этапы) ТОЛЬКО когда пользователь просит варианты лечения / операции / «расскажи подробно». При перечислении — списки через «— ». НЕ используй markdown (#, *, **, ###) — только простой текст. Всегда заканчивай мысль полностью, не обрывайся.\n" +
+  "4. Ты не ставишь диагноз. Напоминание «решение за врачом» добавляй МАКСИМУМ один раз в конце и только одной короткой фразой — не повторяй в каждом абзаце, не начинай с него ответ.\n" +
   "5. Не назначай конкретную дозировку лично пациенту, но можешь объяснять общепринятые схемы и для чего препарат нужен.\n" +
   "6. Пиши на русском.";
 
@@ -42,6 +42,7 @@ export async function onRequest(context) {
     if (url.pathname === "/api/analysis" && request.method === "GET") return json(await apiAnalysis(url, env), 200, cors);
     if (url.pathname === "/api/meds" && request.method === "POST") return json(await apiMedsSave(request, env), 200, cors);
     if (url.pathname === "/api/meds" && request.method === "GET") return json(await apiMedsList(url, env), 200, cors);
+    if (url.pathname === "/api/reminder" && request.method === "POST") return json(await apiReminderSave(request, env), 200, cors);
     if (url.pathname === "/api/tick") return json(await apiTick(url, env, context), 200, cors);
     return json({ error: "not found" }, 404, cors);
   } catch (e) {
@@ -281,10 +282,43 @@ async function apiMedsList(url, env) {
   };
 }
 
+async function apiReminderSave(request, env) {
+  const { initData, dueDate, text, kind, leadDays, tzOffset } = await request.json();
+  const user = await verifyInitData(initData, env.BOT_TOKEN);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate || "")) return { ok: false, error: "bad date" };
+  await env.DB.prepare(
+    "INSERT INTO reminders (id, user_id, kind, due_date, lead_days, text, sent, tz_offset, created_at) VALUES (?,?,?,?,?,?,0,?,?)"
+  ).bind(
+    crypto.randomUUID(), user.id, String(kind || "visit").slice(0, 30), dueDate,
+    Number.isFinite(leadDays) ? Math.trunc(leadDays) : 7,
+    String(text || "").slice(0, 300), Number.isFinite(tzOffset) ? Math.trunc(tzOffset) : 180, Date.now()
+  ).run();
+  return { ok: true };
+}
+
 // вызывается по cron (Worker) каждые ~15 мин
 async function apiTick(url, env, ctx) {
   if (url.searchParams.get("key") !== (env.TICK_KEY || env.SETUP_SECRET)) return { error: "forbidden" };
   const now = Date.now();
+
+  // напоминания о визитах к врачу
+  let remSent = 0;
+  try {
+    const rem = await env.DB.prepare("SELECT * FROM reminders WHERE sent=0").all();
+    for (const r of rem.results || []) {
+      const tz = Number.isFinite(r.tz_offset) ? r.tz_offset : 180;
+      const today = new Date(now + tz * 60000).toISOString().slice(0, 10);
+      const lead = Number.isFinite(r.lead_days) ? r.lead_days : 7;
+      const dayN = (s) => Math.floor(Date.parse(s + "T00:00:00Z") / 86400000);
+      if (dayN(today) < dayN(r.due_date) - lead) continue; // ещё рано
+      await env.DB.prepare("UPDATE reminders SET sent=1 WHERE id=?").bind(r.id).run();
+      ctx.waitUntil(sendMessage(env, r.user_id,
+        `📅 <b>Напоминание</b>\n${r.text || "Скоро визит к врачу"}\n\nДата: ${r.due_date}. Не забудьте записаться.`,
+        { inline_keyboard: [[{ text: "Открыть Me", web_app: { url: env.WEBAPP_URL } }]] }));
+      remSent++;
+    }
+  } catch (e) {}
+
   const { results } = await env.DB.prepare("SELECT * FROM meds WHERE active=1").all();
   let sent = 0;
   for (const m of results || []) {
@@ -312,7 +346,7 @@ async function apiTick(url, env, ctx) {
       sent++;
     }
   }
-  return { ok: true, sent };
+  return { ok: true, sent, remSent };
 }
 
 /* ---------------- Telegram bot ---------------- */
