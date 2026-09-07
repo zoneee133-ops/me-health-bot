@@ -494,6 +494,7 @@
   .med-card .mc-now.mc-done{ color:var(--ink-3); font-weight:400; }
   .med-card .mc-times{ font-size:12.5px; color:var(--ink-2); margin:3px 0 0; font-variant-numeric:tabular-nums; }
   .med-card .mc-next{ font-size:12px; color:var(--ink-3); margin:5px 0 0; }
+  .med-card .mc-left{ font-size:12.5px; color:var(--accent); font-weight:600; margin:4px 0 0; }
   .med-card .mc-course{ margin-top:8px; }
   .med-card .mc-course summary{ font-size:12.5px; color:var(--accent); cursor:pointer; list-style:none; }
   .med-card .mc-course summary::-webkit-details-marker{ display:none; }
@@ -1576,7 +1577,7 @@ async function pdfToImageParts(file, maxPages){
   var parts = [];
   for (var i=1; i<=n; i++){
     var page = await pdf.getPage(i);
-    var vp = page.getViewport({ scale: 2 });
+    var vp = page.getViewport({ scale: 2.6 });
     var c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
     await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
     parts.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] } });
@@ -3214,7 +3215,8 @@ function ruDate(s){
 var RX_PROMPT = 'Это фото/скан/PDF рецепта или назначения врача (часто рукописный, почерк трудный, может быть несколько страниц). Полностью разбери ВСЮ схему лечения.\n\n' +
 'Правила распознавания:\n' +
 '- Читай по контексту. Неуверенное слово — наиболее вероятный вариант + "?" в конце.\n' +
-'- НЕ выдумывай препараты, которых нет. НЕ выдумывай ФИО.\n' +
+'- СВЕРЯЙ названия с реальными препаратами и добавками. Если распознанное слово не совпадает ни с одним реальным препаратом — подставь ближайший по написанию РЕАЛЬНЫЙ препарат (напр. "Сортрет"→"Сотрет", "Фелаицин"→"Фолацин") и добавь "?".\n' +
+'- НЕ выдумывай препараты, которых нет на листе. НЕ выдумывай ФИО.\n' +
 '- Числа и единицы — ровно как в рецепте.\n\n' +
 'Правила схемы (ГЛАВНОЕ):\n' +
 '- ОДИН препарат = ОДИН объект в "meds", даже если доза меняется. НЕ создавай отдельные препараты "Метипред 30", "Метипред 20" — это ОДИН "Метипред" с несколькими "stages".\n' +
@@ -3274,7 +3276,7 @@ function mergeSameName(list){
       byName[key].stages = byName[key].stages.concat(m.stages);
       if (!byName[key].purpose && m.purpose) byName[key].purpose = m.purpose;
     } else {
-      var copy = { name: m.name, purpose: m.purpose, asNeeded: m.asNeeded, stages: m.stages.slice() };
+      var copy = { name: m.name, purpose: m.purpose, asNeeded: m.asNeeded, startDate: m.startDate || null, stages: m.stages.slice() };
       byName[key] = copy; out.push(copy);
     }
   });
@@ -3293,13 +3295,17 @@ async function fillMissingDurations(norm){
   var need = norm.filter(function(m){ return !m.asNeeded && m.stages.some(function(s){ return !s.durationDays; }); });
   if (!need.length) return norm;
   try {
-    var q = 'В рецепте для некоторых препаратов НЕ указана длительность приёма. Для КАЖДОГО препарата из списка дай типичную длительность курса.\n' +
+    var q = 'В рецепте для некоторых препаратов НЕ указана длительность приёма. Для КАЖДОГО препарата дай реалистичную длительность курса.\n' +
       'Список:\n' + norm.map(function(m, i){
         return (i+1) + ') ' + m.name + ' — этапы: ' + m.stages.map(function(s){ return (s.dose || 'доза') + (s.durationDays ? ' (' + s.durationDays + ' дн, указано врачом)' : ' (не указано)'); }).join('; ');
       }).join('\n') + '\n\n' +
+      'Правила:\n' +
+      '- Если у препарата НЕСКОЛЬКО этапов с разной дозой (снижение/повышение) — это КУРС С КОНЦОМ. Дай реальные дни на каждый этап (обычно 14-30). НИКОГДА не ставь 0 для такого препарата.\n' +
+      '- 0 можно ставить ТОЛЬКО для витаминов/БАД/поддерживающей терапии с одним этапом (принимается постоянно).\n' +
+      '- Учитывай безопасность: сосудосуживающие капли в нос — не дольше 5-7 дней; антибиотики — обычно 5-10 дней; и т.п.\n\n' +
       'Верни СТРОГО JSON-массив, по одному объекту на препарат В ТОМ ЖЕ ПОРЯДКЕ:\n' +
-      '[{"stage_days":[числа по одному на каждый этап; для указанных врачом — то же число; 0 = принимать постоянно/длительно/по потребности (витамины, БАДы, поддерживающая терапия)],"why":"короткое пояснение почему такая длительность, простыми словами"}]\n' +
-      'Учитывай безопасность: напр. сосудосуживающие капли в нос — не дольше 5-7 дней. Только JSON.';
+      '[{"stage_days":[число дней на каждый этап; для указанных врачом — то же число],"why":"короткое пояснение простыми словами"}]\n' +
+      'Только JSON.';
     var raw = await claudeMessage(q, 900, '');
     var arr = parseJSONLoose(raw);
     if (Array.isArray(arr)){
@@ -3318,6 +3324,46 @@ async function fillMissingDurations(norm){
       });
     }
   } catch(e){}
+  return norm;
+}
+
+/* гарантируем, что у многоэтапного курса есть конец (иначе календарь уходит в бесконечность) */
+function finalizeMed(m){
+  if (m.asNeeded) return m;
+  if (m.stages.length > 1){
+    m.stages.forEach(function(s){
+      if (!s.durationDays){
+        s.durationDays = 30;
+        s.estimated = true;
+        if (!s.estWhy) s.estWhy = 'В рецепте не указан срок этапа — Me поставил 30 дней. Уточните у врача.';
+      }
+    });
+  }
+  return m;
+}
+
+/* единый вход: нормализация → склейка дублей → досбор длительностей → в state */
+async function ingestMeds(rawList, opts){
+  opts = opts || {};
+  var norm = (rawList || []).map(function(m){
+    return {
+      name: m.name || 'Без названия',
+      purpose: m.purpose || '',
+      asNeeded: !!(m.as_needed || m.asNeeded),
+      startDate: m.startDate || null,
+      stages: medStages(m)
+    };
+  });
+  norm = mergeSameName(norm);
+  var before = JSON.stringify(norm);
+  norm = await fillMissingDurations(norm);
+  norm.forEach(finalizeMed);
+  var today = todayISO();
+  norm.forEach(function(m){
+    addMedication({ name: m.name, purpose: m.purpose, asNeeded: m.asNeeded, stages: m.stages, startDate: m.startDate || today });
+  });
+  var changed = JSON.stringify(norm) !== before;
+  if ((opts.save || changed) && window.__meSaveMeds) window.__meSaveMeds();
   return norm;
 }
 
@@ -3359,6 +3405,7 @@ async function confirmRxMeds(meds, rawText){
 
   openSheet('<p class="sheet-title">Врач назначил</p><div class="inline-status"><div class="spinner"></div><span>Собираю план приёма…</span></div>');
   norm = await fillMissingDurations(norm);
+  norm.forEach(finalizeMed);
 
   __rxEstNotes = {};
   var rows = norm.map(function(m, mi){
@@ -3471,22 +3518,24 @@ function renderMeds(){
       '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:5px;vertical-align:-1px;opacity:.5;"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></p>' +
       '<button class="mc-del" data-del="' + med.id + '" aria-label="Удалить">×</button></div>';
     var body;
-    var durText = courseDurationText(med); // «до 6 окт» / «постоянно» / «~3 мес»
+    var durText = courseDurationText(med); // «до 6 окт» / «постоянно»
+    var left = daysLeft(med);              // сколько дней до конца курса (или null — бессрочно)
     if (med.asNeeded){
       body = '<p class="mc-now">При необходимости' + (med.dosage ? ' · ' + med.dosage : '') + '</p>';
     } else if (done){
       body = '<p class="mc-now mc-done">Курс завершён</p>';
     } else if (act){
       var multi = med.stages.length > 1;
-      var tail = multi ? (act.endsOn ? 'этот этап до ' + ruDate(act.endsOn) : 'постоянно') : durText;
       body = '<p class="mc-now">' + (multi ? 'Сейчас: ' : '') + stageLabel(act.stage) + '</p>' +
-        '<p class="mc-times">' + act.stage.times.join(' · ') + ' &nbsp;·&nbsp; ' + tail + '</p>';
+        '<p class="mc-times">' + act.stage.times.join(' · ') + '</p>';
+      if (left != null){
+        body += '<p class="mc-left">осталось ' + plur(left, ['день','дня','дней']) + ' · до ' + ruDate(courseEndISO(med)) + '</p>';
+      } else {
+        body += '<p class="mc-times">принимать постоянно</p>';
+      }
       if (med.stages[act.index + 1]){
         var nx = med.stages[act.index + 1];
         body += '<p class="mc-next">→ дальше: ' + stageLabel(nx) + ' с ' + ruDate(stageStart(med, act.index + 1)) + '</p>';
-      } else if (multi){
-        var ce = courseEndISO(med);
-        if (ce) body += '<p class="mc-next">весь курс до ' + ruDate(ce) + '</p>';
       }
     } else {
       body = '<p class="mc-now">Начало ' + ruDate(med.startDate) + '</p>';
@@ -3576,6 +3625,16 @@ function courseDurationText(med){
   var end = courseEndISO(med);
   if (!end) return 'постоянно';
   return 'до ' + ruDate(end);
+}
+function daysLeft(med){
+  var end = courseEndISO(med);
+  if (!end) return null;
+  return Math.max(0, dayNum(end) - dayNum(todayISO()) + 1);
+}
+function plur(n, forms){
+  var a = Math.abs(n) % 100, b = a % 10;
+  var w = (a > 10 && a < 20) ? forms[2] : (b > 1 && b < 5) ? forms[1] : (b === 1) ? forms[0] : forms[2];
+  return n + ' ' + w;
 }
 
 /* что принимать в конкретную дату (все препараты) */
@@ -3953,9 +4012,10 @@ function showToast(msg){
     fetch(API + '/api/meds?initData=' + encodeURIComponent(initData))
       .then(function(r){ return r.json(); })
       .then(function(j){
-        (j.items || []).forEach(function(it){
-          try { addMedication({ name:it.name, dosage:it.dosage, purpose:it.purpose, asNeeded:it.asNeeded, stages:it.stages, suggested_times:it.times, startDate:it.startDate, endDate:it.endDate }); } catch(e){}
+        var items = (j.items || []).map(function(it){
+          return { name:it.name, purpose:it.purpose, asNeeded:it.asNeeded, stages:it.stages, suggested_times:it.times, startDate:it.startDate, endDate:it.endDate };
         });
+        if (items.length && typeof ingestMeds === 'function') ingestMeds(items).catch(function(e){ console.warn('ingest meds', e); });
       })
       .catch(function(e){ console.warn('load meds', e); });
   }
