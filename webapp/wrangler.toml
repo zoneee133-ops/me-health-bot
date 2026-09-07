@@ -9,3 +9,4 @@ database_id = "b291ba5c-dcf8-47fb-a24e-21648c05f332"
 
 [vars]
 WEBAPP_URL = "https://me-webapp.pages.dev"
+TICK_KEY = "tk_9f3d1a7c42e8"

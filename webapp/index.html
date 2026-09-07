@@ -2501,7 +2501,9 @@ if (visitRxInput) {
       ]), 1000);
       const meds = JSON.parse(stripFence(raw));
       if (Array.isArray(meds) && meds.length) {
-        meds.forEach(addMedication);
+        var _t = todayISO();
+        meds.forEach(function(m){ m.startDate = _t; addMedication(m); });
+        if (window.__meSaveMeds) window.__meSaveMeds();
         const summary = meds.map(m => m.name + (m.dosage ? ' ' + m.dosage : '')).join('; ');
         document.getElementById('visitAnswerInput').value = summary;
         const key = visitQuestions[visitQIndex].key;
@@ -2657,10 +2659,8 @@ analyzeBtn.addEventListener('click', async () => {
     ]), 1200);
     const meds = JSON.parse(stripFence(raw));
     if (!Array.isArray(meds) || !meds.length) throw new Error('no meds');
-    meds.forEach(addMedication);
-    showToast(`Распознано препаратов: ${meds.length}`);
     uploadPreviewWrap.style.display = 'none';
-    goTo('meds');
+    confirmRxMeds(meds);
   } catch(err){
     analyzeError.style.display = 'block';
     analyzeError.textContent = 'Не получилось распознать автоматически. Попробуйте ввести вручную.';
@@ -2928,6 +2928,36 @@ if (manualMedDone) {
     closeDetail('detail-manualmed');
     goTo('meds');
     showToast('Препарат добавлен');
+    if (window.__meSaveMeds) window.__meSaveMeds();
+  });
+}
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function confirmRxMeds(meds){
+  var rows = meds.map(function(m){
+    var t = (m.suggested_times && m.suggested_times.length) ? m.suggested_times : suggestTimes(m.frequency_per_day || 2);
+    return '<div style="padding:11px 0;border-bottom:1px solid var(--border-soft);">' +
+      '<p style="margin:0;font-weight:600;font-size:15px;">' + (m.name || 'Без названия') + '</p>' +
+      '<p style="margin:3px 0 0;font-size:13px;color:var(--ink-2);">' + (m.dosage ? m.dosage + ' · ' : '') + 'приём в ' + t.join(', ') + '</p></div>';
+  }).join('');
+  openSheet(
+    '<p class="sheet-title">Врач назначил</p>' +
+    '<p class="sheet-sub">Проверьте — всё верно?</p>' + rows +
+    '<p style="font-size:13px;color:var(--ink-2);line-height:1.5;margin:14px 0 12px;">Начать приём с сегодня и внести в календарь? Me будет напоминать в Telegram, когда придёт время.</p>' +
+    '<button class="cta accent" id="rxYes">Да, внести в календарь</button>' +
+    '<button class="cta secondary" id="rxNo" style="margin-top:8px;">Не сейчас</button>'
+  );
+  var y = document.getElementById('rxYes'), n = document.getElementById('rxNo');
+  if (y) y.addEventListener('click', function(){
+    var today = todayISO();
+    meds.forEach(function(m){ m.startDate = today; addMedication(m); });
+    closeSheet(); goTo('meds'); showToast('Расписание создано');
+    if (window.__meSaveMeds) window.__meSaveMeds();
+  });
+  if (n) n.addEventListener('click', function(){
+    meds.forEach(addMedication); closeSheet(); goTo('meds');
+    if (window.__meSaveMeds) window.__meSaveMeds();
   });
 }
 
@@ -3179,6 +3209,18 @@ function showToast(msg){
     }).catch(function(e){ console.warn('save', e); });
   } : null;
 
+  var _medsSaving = false;
+  window.__meSaveMeds = LIVE ? function(){
+    if (_medsSaving) return; _medsSaving = true;
+    var payload = (state.meds || []).map(function(m){
+      return { name:m.name, dosage:m.dosage, times:(m.times||[]).map(function(t){ return t.time; }), startDate:m.startDate || null, endDate:m.endDate || null };
+    });
+    fetch(API + '/api/meds', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ initData:initData, meds:payload, tzOffset: -new Date().getTimezoneOffset() })
+    }).catch(function(e){ console.warn('meds save', e); }).finally(function(){ _medsSaving = false; });
+  } : null;
+
   function startParam(){
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) return tg.initDataUnsafe.start_param;
     var u = new URL(location.href);
@@ -3201,6 +3243,15 @@ function showToast(msg){
         }
       })
       .catch(function(e){ console.warn('load analyses', e); });
+
+    fetch(API + '/api/meds?initData=' + encodeURIComponent(initData))
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        (j.items || []).forEach(function(it){
+          try { addMedication({ name:it.name, dosage:it.dosage, suggested_times:it.times, startDate:it.startDate, endDate:it.endDate }); } catch(e){}
+        });
+      })
+      .catch(function(e){ console.warn('load meds', e); });
   }
 })();
 </script>

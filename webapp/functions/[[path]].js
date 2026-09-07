@@ -29,6 +29,9 @@ export async function onRequest(context) {
     if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, context), 200, cors);
     if (url.pathname === "/api/analyses" && request.method === "GET") return json(await apiAnalyses(url, env), 200, cors);
     if (url.pathname === "/api/analysis" && request.method === "GET") return json(await apiAnalysis(url, env), 200, cors);
+    if (url.pathname === "/api/meds" && request.method === "POST") return json(await apiMedsSave(request, env), 200, cors);
+    if (url.pathname === "/api/meds" && request.method === "GET") return json(await apiMedsList(url, env), 200, cors);
+    if (url.pathname === "/api/tick") return json(await apiTick(url, env, context), 200, cors);
     return json({ error: "not found" }, 404, cors);
   } catch (e) {
     return json({ error: String((e && e.message) || e) }, 500, cors);
@@ -189,6 +192,64 @@ async function apiAnalysis(url, env) {
   ).bind(user.id, url.searchParams.get("id")).first();
   if (!row) throw new Error("not found");
   return { id: row.id, created_at: row.created_at, source: row.source, status: row.status, analysis: safeParse(row.data) };
+}
+
+/* ---------------- meds schedule + reminders ---------------- */
+
+async function apiMedsSave(request, env) {
+  const { initData, meds, tzOffset } = await request.json();
+  const user = await verifyInitData(initData, env.BOT_TOKEN);
+  const tz = Number.isFinite(tzOffset) ? Math.trunc(tzOffset) : 180;
+  // полная замена расписания пользователя
+  await env.DB.prepare("DELETE FROM meds WHERE user_id=?").bind(user.id).run();
+  const today = new Date().toISOString().slice(0, 10);
+  for (const m of (meds || []).slice(0, 30)) {
+    const times = Array.isArray(m.times) ? m.times.filter((t) => /^\d{2}:\d{2}$/.test(t)) : [];
+    await env.DB.prepare(
+      "INSERT INTO meds (id, user_id, name, dosage, times, start_date, end_date, active, created_at, tz_offset) VALUES (?,?,?,?,?,?,?,1,?,?)"
+    ).bind(
+      crypto.randomUUID(), user.id, String(m.name || "").slice(0, 120), String(m.dosage || "").slice(0, 80),
+      JSON.stringify(times), m.startDate || today, m.endDate || null, Date.now(), tz
+    ).run();
+  }
+  return { ok: true, count: (meds || []).length };
+}
+
+async function apiMedsList(url, env) {
+  const user = await verifyInitData(url.searchParams.get("initData"), env.BOT_TOKEN);
+  const { results } = await env.DB.prepare(
+    "SELECT id, name, dosage, times, start_date, end_date FROM meds WHERE user_id=? AND active=1 ORDER BY created_at ASC"
+  ).bind(user.id).all();
+  return { items: (results || []).map((r) => ({ id: r.id, name: r.name, dosage: r.dosage, times: safeParse(r.times) || [], startDate: r.start_date, endDate: r.end_date })) };
+}
+
+// вызывается по cron (Worker) каждые ~15 мин
+async function apiTick(url, env, ctx) {
+  if (url.searchParams.get("key") !== (env.TICK_KEY || env.SETUP_SECRET)) return { error: "forbidden" };
+  const now = Date.now();
+  const { results } = await env.DB.prepare("SELECT * FROM meds WHERE active=1").all();
+  let sent = 0;
+  for (const m of results || []) {
+    const tz = Number.isFinite(m.tz_offset) ? m.tz_offset : 180;
+    const local = new Date(now + tz * 60000);
+    const dateStr = local.toISOString().slice(0, 10);
+    if (m.start_date && dateStr < m.start_date) continue;
+    if (m.end_date && dateStr > m.end_date) continue;
+    const nowMin = local.getUTCHours() * 60 + local.getUTCMinutes();
+    for (const t of safeParse(m.times) || []) {
+      const [hh, mm] = t.split(":").map(Number);
+      const slotMin = hh * 60 + mm;
+      if (nowMin < slotMin || nowMin - slotMin > 20) continue; // окно 20 мин после времени приёма
+      const dedupe = await env.DB.prepare("SELECT 1 FROM med_log WHERE med_id=? AND slot=? AND sent_date=?").bind(m.id, t, dateStr).first();
+      if (dedupe) continue;
+      await env.DB.prepare("INSERT INTO med_log (med_id, slot, sent_date) VALUES (?,?,?)").bind(m.id, t, dateStr).run();
+      ctx.waitUntil(sendMessage(env, m.user_id,
+        `💊 <b>Время принять лекарство</b>\n${m.name}${m.dosage ? " — " + m.dosage : ""}\n\nОткройте Me и отметьте приём.`,
+        { inline_keyboard: [[{ text: "Открыть Me", web_app: { url: env.WEBAPP_URL } }]] }));
+      sent++;
+    }
+  }
+  return { ok: true, sent };
 }
 
 /* ---------------- Telegram bot ---------------- */

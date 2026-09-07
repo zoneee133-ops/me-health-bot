@@ -1,20 +1,16 @@
-# Нужен только если деплоишь через терминал (wrangler).
-# По инструкции SETUP.md всё делается в дашборде — этот файл можно игнорировать.
+# Cron-воркер: раз в 15 минут дёргает /api/tick на Pages, который рассылает
+# напоминания о приёме лекарств. Публичного роута нет (workers.dev в РФ заблокирован,
+# но cron работает внутри Cloudflare и это не мешает).
+#
+# Деплой:  cd worker && wrangler deploy
 
-name = "me-backend"
+name = "me-cron"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "me-db"
-database_id = "PASTE_D1_DATABASE_ID_HERE"
+[triggers]
+crontab = ["*/15 * * * *"]
 
 [vars]
-WEBAPP_URL = "https://me-webapp.pages.dev"
-# OPENROUTER_MODEL = "qwen/qwen2.5-vl-72b-instruct:free"   # необязательно
-
-# Секреты — командами, НЕ сюда:
-#   wrangler secret put BOT_TOKEN
-#   wrangler secret put OPENROUTER_KEY
-#   wrangler secret put SETUP_SECRET
+TICK_URL = "https://me-webapp.pages.dev/api/tick"
+TICK_KEY = "tk_9f3d1a7c42e8"
