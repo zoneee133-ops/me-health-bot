@@ -20,7 +20,7 @@
  *   DB  — D1 database (Settings -> Bindings)
  */
 
-const DEFAULT_MODEL = "qwen/qwen2.5-vl-72b-instruct:free";
+const DEFAULT_MODEL = "minimax/minimax-m3:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export default {

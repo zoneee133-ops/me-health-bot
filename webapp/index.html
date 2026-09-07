@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>Me — v6.0</title>
+<title>Me — здоровье это не сложно</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23212842'/%3E%3Cpath d='M14 46V20l9 16 9-16v26' fill='none' stroke='%23F0E7D5' stroke-width='5' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
   /* адрес backend (Cloudflare Worker). Заполни после `wrangler deploy`. */
@@ -1001,8 +1002,7 @@
   <!-- ONBOARDING -->
   <div class="onboarding" id="onboarding">
     <div class="ob-step active" data-step="0">
-      <div class="ob-mark"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M12 21s-7-4.35-9.5-8.8C.7 8.7 2 5 5.4 4.4 7.7 4 9.8 5 12 7.3 14.2 5 16.3 4 18.6 4.4 22 5 23.3 8.7 21.5 12.2 19 16.65 12 21 12 21z"/></svg></div>
-      <h1 class="ob-title">Me</h1>
+      <img src="logomark.jpg" alt="Me" style="width:132px;height:auto;margin-bottom:18px;mix-blend-mode:multiply;">
       <p class="ob-text">Персональный ИИ-помощник по здоровью. Понимает ваши анализы, рецепты и визиты к врачу — и объясняет их простыми словами.</p>
     </div>
     <div class="ob-step" data-step="1">
@@ -1142,7 +1142,7 @@
           <p class="u-title">Сфотографировать рецепт</p>
           <p class="u-sub">Даже неразборчивый почерк — попробуем распознать</p>
         </label>
-        <input type="file" id="fileInput" accept="image/*" capture="environment">
+        <input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment">
 
         <label class="upload-zone" for="fileInputFile" id="fileLabel">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="margin:0 auto;display:block;color:var(--ink);">
@@ -1150,9 +1150,9 @@
             <path d="M14 2v6h6M12 18v-6M9 15h6"/>
           </svg>
           <p class="u-title">Загрузить из файлов</p>
-          <p class="u-sub">Фото или скан бланка</p>
+          <p class="u-sub">Фото, скан или PDF</p>
         </label>
-        <input type="file" id="fileInputFile" accept="image/*">
+        <input type="file" id="fileInputFile" accept="image/*,application/pdf">
 
         <div id="uploadPreviewWrap" style="display:none; margin-top:4px; margin-bottom:10px; border-radius:16px; overflow:hidden; border:1px solid var(--border);">
           <img id="uploadPreviewImg" style="width:100%; display:block; max-height:170px; object-fit:cover;">
@@ -1227,13 +1227,13 @@
       <div class="detail-header"><button class="back-btn" data-close="detail-bloodtests"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Назад</button><span class="detail-header-title">Анализы крови</span></div>
       <div class="detail-body">
         <h1 class="title" style="margin-top:2px;">Анализы крови</h1>
-        <p class="subtitle" style="margin-bottom:18px;">Сфотографируйте бланк — Me распознает показатели и объяснит каждый простыми словами</p>
+        <p class="subtitle" style="margin-bottom:18px;">Сфотографируйте бланк или загрузите PDF — Me распознает показатели и объяснит каждый простыми словами</p>
 
         <div class="card" style="margin-bottom:12px; padding:18px 16px;">
           <p style="margin:0 0 4px; font-size:15px; font-weight:600;">Загрузить фото или скан</p>
           <p style="margin:0 0 14px; font-size:13px; color:var(--ink-2);">Печатный бланк или разборчивый почерк. Даже фото с телефона.</p>
-          <label class="cta accent" style="display:block; text-align:center; padding:13px; margin:0; cursor:pointer;" for="bloodFileInput">Выбрать фото</label>
-          <input type="file" id="bloodFileInput" accept="image/*">
+          <label class="cta accent" style="display:block; text-align:center; padding:13px; margin:0; cursor:pointer;" for="bloodFileInput">Выбрать файл или фото</label>
+          <input type="file" id="bloodFileInput" accept="image/*,application/pdf">
         </div>
 
         <div class="soon-card">
@@ -1300,7 +1300,7 @@
             <p class="u-title">Загрузить рецепт / бланк</p>
             <p class="u-sub">Фото рукописного рецепта — Me распознает препараты и дозировки</p>
           </label>
-          <input type="file" id="visitRxInput" accept="image/*" capture="environment">
+          <input type="file" id="visitRxInput" accept="image/*,application/pdf" capture="environment">
           <div class="inline-status" id="visitRxStatus" style="display:none;"><div class="spinner"></div><span>Читаю рецепт…</span></div>
         </div>
 
@@ -1447,6 +1447,30 @@ async function claudeMessage(content, maxTokens){
 }
 function stripFence(t){ return t.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim(); }
 
+/* файл (фото или PDF) -> массив image-частей для claudeMessage. PDF рендерим через pdf.js. */
+var PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+function loadScriptOnce(src){ return new Promise(function(res,rej){ var s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=function(){ rej(new Error('script '+src)); }; document.head.appendChild(s); }); }
+async function pdfToImageParts(file, maxPages){
+  if (!window.pdfjsLib){ await loadScriptOnce(PDFJS_BASE+'pdf.min.js'); window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE+'pdf.worker.min.js'; }
+  var buf = await file.arrayBuffer();
+  var pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  var n = Math.min(pdf.numPages, maxPages || 8);
+  var parts = [];
+  for (var i=1; i<=n; i++){
+    var page = await pdf.getPage(i);
+    var vp = page.getViewport({ scale: 2 });
+    var c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    parts.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] } });
+  }
+  return parts;
+}
+async function fileToImageParts(file){
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) return pdfToImageParts(file, 8);
+  var b64 = await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result).split(',')[1]); }; r.onerror=rej; r.readAsDataURL(file); });
+  return [{ type:'image', source:{ type:'base64', media_type: file.type || 'image/jpeg', data: b64 } }];
+}
+
 function baseHealthContext(){
   let ctx = `Пользователя зовут Роберт. Me — персональный ИИ-помощник по здоровью: помогает понимать анализы, рецепты и визиты к врачу простыми словами.`;
   if (state.bloodTests.length){
@@ -1513,6 +1537,13 @@ var obStep = 0;
 var obSteps = document.querySelectorAll('.ob-step');
 var obDots = document.querySelectorAll('.ob-dot');
 var obNextBtn = document.getElementById('obNext');
+/* онбординг только при первом входе */
+try {
+  if (localStorage.getItem('me_ob_done')) {
+    var obEl = document.getElementById('onboarding');
+    if (obEl) obEl.style.display = 'none';
+  }
+} catch(e){}
 if (obNextBtn) {
   obNextBtn.addEventListener('click', function() {
     if (obStep < obSteps.length - 1){
@@ -1523,6 +1554,7 @@ if (obNextBtn) {
       if (obDots[obStep]) obDots[obStep].classList.add('active');
       obNextBtn.textContent = obStep === obSteps.length - 1 ? 'Начать' : 'Продолжить';
     } else {
+      try { localStorage.setItem('me_ob_done', '1'); } catch(e){}
       var ob = document.getElementById('onboarding');
       var today = document.getElementById('screen-today');
       if (ob){
@@ -1893,11 +1925,10 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
   box.innerHTML = '<div class="analyzing-box"><div class="analyzing-spinner"></div><p class="a-strong">Распознаю анализ…</p><p style="font-size:13px;color:var(--ink-2);margin-top:6px;">ИИ читает бланк и объясняет каждый показатель простыми словами</p></div>';
   if (listWrap) listWrap.style.display = 'none';
   try {
-    const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
-    const raw = await claudeMessage([
-      { type:'image', source:{ type:'base64', media_type:file.type || 'image/jpeg', data:base64 } },
-      { type:'text', text:'Это фото или скан результатов анализа крови/биохимии (печатный бланк или почерк, возможно плохое качество). Распознай максимально точно. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"показатель по-русски","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"1-2 предложения простыми словами: что это за показатель и что значит именно это значение, без диагнозов и паники"}],"summary":"2-3 предложения человеческим языком: общая картина, на что обратить внимание, без диагнозов"}\nНе выдумывай показатели, которых нет на изображении. Пиши понятно для пожилого человека. Только JSON.' }
-    ], 2500);
+    const imgs = await fileToImageParts(file);
+    const raw = await claudeMessage(imgs.concat([
+      { type:'text', text:'Это фото или скан результатов анализа крови/биохимии (печатный бланк, PDF или почерк, возможно несколько страниц). Распознай максимально точно все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"показатель по-русски","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"1-2 предложения простыми словами: что это за показатель и что значит именно это значение; если отклонение — на каком фоне так бывает, без диагнозов и паники"}],"summary":"2-3 предложения человеческим языком: общая картина, что повышено/понижено и на каком фоне, на что обратить внимание, без диагнозов"}\nНе выдумывай показатели, которых нет на изображении. Пиши понятно для пожилого человека. Только JSON.' }
+    ]), 4000);
     const parsed = JSON.parse(stripFence(raw));
     if (!parsed.markers || !parsed.markers.length) throw new Error('no markers');
     const bt = addBloodTest(parsed);
@@ -2056,7 +2087,7 @@ const MARKER_SIMPLE = {
   }
 };
 
-function simpleExplain(name, value, flag){
+function simpleExplain(name, value, flag, plain){
   var key = Object.keys(MARKER_SIMPLE).find(function(k){ return (name || '').toLowerCase().includes(k); });
   var info = key ? MARKER_SIMPLE[key] : null;
   var what = info ? info.what : 'Показатель из вашего анализа.';
@@ -2066,11 +2097,15 @@ function simpleExplain(name, value, flag){
   else statusText = info ? info.statusOk : 'Значение в обычном диапазоне.';
   var norm = info && info.norm ? info.norm : '';
   var full = info && info.full ? info.full : 'Обсудите показатель с врачом в контексте остальных анализов.';
+  if (plain) {            // объяснение от ИИ по этому конкретному значению — приоритетнее словаря
+    statusText = plain;
+    full = plain;
+  }
   return { what: what, statusText: statusText, norm: norm, full: full, flag: flag || 'normal' };
 }
 
-function buildMarkerBriefCard(name, value, flag){
-  var ex = simpleExplain(name, value, flag);
+function buildMarkerBriefCard(name, value, flag, plain){
+  var ex = simpleExplain(name, value, flag, plain);
   var isAtt = flag === 'high' || flag === 'low';
   var dotClass = flag === 'high' ? 'att' : (flag === 'low' ? 'warn' : 'ok');
   var valClass = flag === 'high' ? 'att' : (flag === 'low' ? 'warn' : 'ok');
@@ -2083,10 +2118,11 @@ function buildMarkerBriefCard(name, value, flag){
           (ex.norm ? '<p class="mb-norm">норма ' + ex.norm + '</p>' : '') +
         '</div>' +
       '</div>' +
-      '<p class="mb-what">' + ex.what + '</p>' +
-      (isAtt || flag === 'normal' ? '<p class="mb-meaning">' + ex.statusText + '</p>' : '') +
-      '<button type="button" class="mb-link" data-expand="' + uid + '"><span class="mb-link-label">Показать полный разбор →</span></button>' +
-      '<div class="mb-full">' + ex.full + '</div>' +
+      (plain ? '' : '<p class="mb-what">' + ex.what + '</p>') +
+      '<p class="mb-meaning">' + ex.statusText + '</p>' +
+      (plain ? '' :
+        '<button type="button" class="mb-link" data-expand="' + uid + '"><span class="mb-link-label">Показать полный разбор →</span></button>' +
+        '<div class="mb-full">' + ex.full + '</div>') +
     '</div>'
   );
 }
@@ -2169,7 +2205,7 @@ function renderBloodStep1(bt){
       var flag = 'normal';
       if (valEl && valEl.classList.contains('flag-high')) flag = 'high';
       else if (valEl && valEl.classList.contains('flag-low')) flag = 'low';
-      openMarkerSheet(el.dataset.marker, el.dataset.to, bt.date, flag);
+      openMarkerSheet(el.dataset.marker, el.dataset.to, bt.date, flag, (bt.plainByName || {})[String(el.dataset.marker).toLowerCase()]);
     });
   });
   const goStep2 = () => {
@@ -2185,12 +2221,13 @@ function renderBloodStep1(bt){
 
 function renderBloodStep2(bt){
   var body = document.getElementById('bloodResultBody');
+  var pbn = bt.plainByName || {};
   var attentionBlocks = (bt.needsAttention || []).map(function(m){
-    return buildMarkerBriefCard(m.name, m.to, m.flag);
+    return buildMarkerBriefCard(m.name, m.to, m.flag, pbn[String(m.name).toLowerCase()]);
   }).join('');
 
   var stableBlocks = (bt.stable || []).map(function(m){
-    return buildMarkerBriefCard(m.name, m.value, 'normal');
+    return buildMarkerBriefCard(m.name, m.value, 'normal', pbn[String(m.name).toLowerCase()]);
   }).join('');
 
   var summary = (typeof buildStep1Summary === 'function') ? buildStep1Summary(bt) : '';
@@ -2356,15 +2393,14 @@ function renderBloodStep3(bt){
   openDetail('detail-bloodresult');
 }
 
-function openMarkerSheet(name, value, date, flag){
-  var ex = simpleExplain(name, value, flag || 'normal');
+function openMarkerSheet(name, value, date, flag, plain){
+  var ex = simpleExplain(name, value, flag || 'normal', plain);
   openSheet(
     '<p class="sheet-title">' + name + '</p>' +
     '<p class="sheet-sub">' + value + (date ? ' · ' + date : '') + '</p>' +
-    '<p style="font-size:14px;line-height:1.45;color:var(--ink);margin:0 0 6px;">' + ex.what + '</p>' +
-    '<p style="font-size:14px;line-height:1.45;color:var(--ink-2);margin:0 0 12px;">' + ex.statusText + '</p>' +
-    (ex.norm ? '<p style="font-size:12.5px;color:var(--ink-3);margin:0 0 12px;">норма ' + ex.norm + '</p>' : '') +
-    '<p style="font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:0;">' + ex.full + '</p>'
+    (plain ? '' : '<p style="font-size:14px;line-height:1.45;color:var(--ink);margin:0 0 6px;">' + ex.what + '</p>') +
+    '<p style="font-size:14px;line-height:1.5;color:var(--ink-2);margin:0 0 12px;">' + ex.statusText + '</p>' +
+    (ex.norm ? '<p style="font-size:12.5px;color:var(--ink-3);margin:0;">норма ' + ex.norm + '</p>' : '')
   );
 }
 
@@ -2447,27 +2483,20 @@ if (visitRxInput) {
     const status = document.getElementById('visitRxStatus');
     if (status) status.style.display = 'flex';
     try {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        const dataUrl = await new Promise((res, rej) => { reader.onload = () => res(reader.result); reader.onerror = rej; reader.readAsDataURL(file); });
-        const base64 = dataUrl.split(',')[1];
-        const raw = await claudeMessage([
-          { type:'image', source:{ type:'base64', media_type:file.type, data:base64 } },
-          { type:'text', text:'Это фото рецепта. Извлеки препараты и дозировки. Ответь СТРОГО JSON-массивом без markdown:\\n[{"name":"...","dosage":"...","frequency_per_day":2,"suggested_times":["09:00","21:00"]}]\\nЕсли неразборчиво — наиболее вероятное чтение. Не выдумывай лишние препараты.' }
-        ], 1000);
-        const meds = JSON.parse(stripFence(raw));
-        if (Array.isArray(meds) && meds.length) {
-          meds.forEach(addMedication);
-          const summary = meds.map(m => m.name + (m.dosage ? ' ' + m.dosage : '')).join('; ');
-          document.getElementById('visitAnswerInput').value = summary;
-          const key = visitQuestions[visitQIndex].key;
-          pendingVisit[key] = summary;
-          showToast('Рецепт распознан');
-        } else {
-          showToast('Не удалось прочитать рецепт');
-        }
+      const imgs = await fileToImageParts(file);
+      const raw = await claudeMessage(imgs.concat([
+        { type:'text', text:'Это фото или PDF рецепта (возможно рукописный). Извлеки препараты и дозировки. Ответь СТРОГО JSON-массивом без markdown:\\n[{"name":"...","dosage":"...","frequency_per_day":2,"suggested_times":["09:00","21:00"]}]\\nЕсли неразборчиво — наиболее вероятное чтение. Не выдумывай лишние препараты.' }
+      ]), 1000);
+      const meds = JSON.parse(stripFence(raw));
+      if (Array.isArray(meds) && meds.length) {
+        meds.forEach(addMedication);
+        const summary = meds.map(m => m.name + (m.dosage ? ' ' + m.dosage : '')).join('; ');
+        document.getElementById('visitAnswerInput').value = summary;
+        const key = visitQuestions[visitQIndex].key;
+        pendingVisit[key] = summary;
+        showToast('Рецепт распознан');
       } else {
-        showToast('Загрузите фото — PDF пока не поддерживается');
+        showToast('Не удалось прочитать рецепт');
       }
     } catch(e) {
       showToast('Не получилось распознать — введите текстом');
@@ -2561,7 +2590,7 @@ const analyzeError = document.getElementById('analyzeError');
 const medScheduleCard = document.getElementById('medScheduleCard');
 const medScheduleList = document.getElementById('medScheduleList');
 const medEmptyState = document.getElementById('medEmptyState');
-let uploadedImage = null;
+let uploadedParts = null;
 
 function refreshMedEmptyState(){
   const has = state.meds.length > 0;
@@ -2577,21 +2606,26 @@ document.querySelectorAll('[data-nav="meds"]').forEach(el => {
   });
 });
 
-function handleMedFile(file){
+async function handleMedFile(file){
   if (!file) return;
   analyzeError.style.display = 'none';
-  const reader = new FileReader();
-  reader.onload = e => {
-    uploadedImage = { data: e.target.result.split(',')[1], mediaType: file.type };
+  uploadedParts = null;
+  analyzeBtn.style.display = 'none';
+  uploadPreviewWrap.style.display = 'none';
+  analyzeStatus.style.display = 'flex';
+  try {
+    uploadedParts = await fileToImageParts(file);
     if (file.type.startsWith('image/')) {
-      uploadPreviewImg.src = e.target.result;
+      uploadPreviewImg.src = URL.createObjectURL(file);
       uploadPreviewWrap.style.display = 'block';
-    } else {
-      uploadPreviewWrap.style.display = 'none';
     }
     analyzeBtn.style.display = 'block';
-  };
-  reader.readAsDataURL(file);
+  } catch(e){
+    analyzeError.style.display = 'block';
+    analyzeError.textContent = 'Не получилось открыть файл. Попробуйте фото.';
+  } finally {
+    analyzeStatus.style.display = 'none';
+  }
 }
 
 fileInput.addEventListener('change', () => handleMedFile(fileInput.files[0]));
@@ -2603,13 +2637,12 @@ function suggestTimes(freq){
 }
 
 analyzeBtn.addEventListener('click', async () => {
-  if (!uploadedImage) return;
+  if (!uploadedParts || !uploadedParts.length) return;
   analyzeBtn.style.display = 'none'; analyzeStatus.style.display = 'flex'; analyzeError.style.display = 'none';
   try {
-    const raw = await claudeMessage([
-      { type:'image', source:{ type:'base64', media_type: uploadedImage.mediaType, data: uploadedImage.data } },
-      { type:'text', text:'Это фото рецепта врача, возможно с неразборчивым почерком. Разбери все препараты. Ответь СТРОГО JSON-массивом без markdown, на русском:\\n[{"name":"название","dosage":"доза, напр. 500 мг","frequency_per_day":число,"suggested_times":["HH:MM",...]}]\\nВремена распредели равномерно между 08:00 и 22:00. Если неразборчиво — сделай наиболее вероятное предположение, не выдумывай препараты которых нет.' }
-    ], 1200);
+    const raw = await claudeMessage(uploadedParts.concat([
+      { type:'text', text:'Это фото или PDF рецепта врача, возможно с неразборчивым почерком. Разбери все препараты. Ответь СТРОГО JSON-массивом без markdown, на русском:\\n[{"name":"название","dosage":"доза, напр. 500 мг","frequency_per_day":число,"suggested_times":["HH:MM",...]}]\\nВремена распредели равномерно между 08:00 и 22:00. Если неразборчиво — сделай наиболее вероятное предположение, не выдумывай препараты которых нет.' }
+    ]), 1200);
     const meds = JSON.parse(stripFence(raw));
     if (!Array.isArray(meds) || !meds.length) throw new Error('no meds');
     meds.forEach(addMedication);

@@ -4,7 +4,7 @@
  * env приходит из Pages project: binding DB (D1), vars/secrets BOT_TOKEN / OPENROUTER_KEY / SETUP_SECRET / WEBAPP_URL.
  */
 
-const DEFAULT_MODEL = "qwen/qwen2.5-vl-72b-instruct:free";
+const DEFAULT_MODEL = "minimax/minimax-m3:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export async function onRequest(context) {
@@ -21,6 +21,10 @@ export async function onRequest(context) {
     if (url.pathname === "/webhook" && request.method === "POST") return handleWebhook(request, env);
     if (url.pathname === "/setup") return handleSetup(url, env);
     if (url.pathname === "/api/llm" && request.method === "POST") return json(await apiLlm(request, env), 200, cors);
+    if (url.pathname === "/api/llm-test" && request.method === "POST" && url.searchParams.get("secret") === env.SETUP_SECRET) {
+      const body = await request.json();
+      return json(await llmRaw(body.content, body.maxTokens, env, body.model), 200, cors);
+    }
     if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, context), 200, cors);
     if (url.pathname === "/api/analyses" && request.method === "GET") return json(await apiAnalyses(url, env), 200, cors);
     if (url.pathname === "/api/analysis" && request.method === "GET") return json(await apiAnalysis(url, env), 200, cors);
@@ -58,7 +62,10 @@ async function hmac(keyBytes, msgBytes) {
 async function apiLlm(request, env) {
   const { initData, content, maxTokens } = await request.json();
   await verifyInitData(initData, env.BOT_TOKEN);
+  return llmRaw(content, maxTokens, env);
+}
 
+async function llmRaw(content, maxTokens, env, modelOverride) {
   const parts = [];
   if (typeof content === "string") {
     parts.push({ type: "text", text: content });
@@ -80,10 +87,10 @@ async function apiLlm(request, env) {
       "X-Title": "Me Health",
     },
     body: JSON.stringify({
-      model: env.OPENROUTER_MODEL || DEFAULT_MODEL,
+      model: modelOverride || env.OPENROUTER_MODEL || DEFAULT_MODEL,
       messages: [{ role: "user", content: parts }],
       max_tokens: maxTokens || 2000,
-      temperature: 0.3,
+      temperature: 0.2,
     }),
   });
   const d = await r.json();
