@@ -225,12 +225,13 @@ function medActiveStage(stages, startDate, dateStr) {
   if (elapsed < 0) return null;
   let acc = 0;
   for (let i = 0; i < stages.length; i++) {
-    const dur = Number(stages[i].durationDays);
-    if (!Number.isFinite(dur) || dur <= 0) return { stage: stages[i], index: i }; // бессрочный этап
+    let dur = Number(stages[i].durationDays);
+    if ((!Number.isFinite(dur) || dur <= 0) && i < stages.length - 1) dur = 30; // средний этап без срока
+    if (!Number.isFinite(dur) || dur <= 0) return { stage: stages[i], index: i }; // последний бессрочный этап
     if (elapsed < acc + dur) return { stage: stages[i], index: i };
     acc += dur;
   }
-  return null; // прошли все конечные этапы — курс завершён
+  return null;
 }
 
 function normStages(m) {
@@ -245,6 +246,8 @@ function normStages(m) {
     times: (Array.isArray(s.times) ? s.times : []).filter((t) => /^\d{2}:\d{2}$/.test(t)).slice(0, 8),
     durationDays: Number.isFinite(Number(s.durationDays)) && Number(s.durationDays) > 0 ? Math.trunc(Number(s.durationDays)) : null,
     durationText: String(s.durationText || "").slice(0, 40),
+    estimated: !!s.estimated,
+    estWhy: String(s.estWhy || "").slice(0, 240),
     note: String(s.note || "").slice(0, 120),
   }));
 }
