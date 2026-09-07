@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Me — Float TabBar</title>
+<style>
+  :root{
+    --cream:#F0E7D5;          /* Vanilla Cream */
+    --cream-deep:#E4D9C1;
+    --indigo:#212842;         /* Midnight Indigo */
+    --indigo-soft:rgba(33,40,66,0.42);
+    --pill:#FDFBF6;           /* warm white bar */
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--cream-deep);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,Helvetica,Arial,sans-serif;
+    color:var(--indigo); display:flex; justify-content:center; align-items:flex-start; padding:24px 12px 40px;
+  }
+  .device{
+    width:390px; max-width:100%; height:844px; max-height:92vh;
+    background:var(--cream); border-radius:44px; border:1px solid #D9CDB2;
+    overflow:hidden; position:relative; box-shadow:0 40px 80px -40px rgba(33,40,66,0.30);
+    display:flex; flex-direction:column;
+  }
+  .statusbar{ display:flex; justify-content:space-between; align-items:center;
+    padding:14px 26px 6px; font-size:14px; font-weight:600; flex-shrink:0; color:var(--indigo); }
+  .stage{ flex:1; position:relative; overflow:hidden; }
+  .stage-head{ padding:22px 24px 0; }
+  .stage-head h1{ font-size:29px; font-weight:700; letter-spacing:-0.02em; margin:8px 0 2px; color:var(--indigo); }
+  .stage-head p{ font-size:15px; color:rgba(33,40,66,0.55); margin:0; }
+
+  /* ===== Float tab bar ===== */
+  .floatnav{
+    position:absolute; left:16px; right:16px;
+    bottom:calc(env(safe-area-inset-bottom,0) + 16px);
+    height:64px;
+    display:flex; align-items:center; z-index:10;
+    opacity:0; transform:translateY(150%);
+  }
+  .floatnav.in{
+    opacity:1; transform:translateY(0);
+    transition:transform 0.7s cubic-bezier(.16,1,.3,1), opacity 0.45s ease;
+  }
+  /* SVG bar background with the live sag notch */
+  .fn-bg{
+    position:absolute; inset:0; width:100%; height:100%;
+    overflow:visible; z-index:0; pointer-events:none;
+  }
+  .fn-bg path{
+    fill:var(--pill);
+    filter:drop-shadow(0 12px 28px rgba(33,40,66,0.20)) drop-shadow(0 2px 6px rgba(33,40,66,0.08));
+  }
+
+  .fn-tab{
+    position:relative; z-index:2; flex:1; height:100%;
+    display:flex; align-items:center; justify-content:center;
+    background:none; border:none; cursor:pointer; padding:0;
+    color:var(--indigo-soft);
+    transition:color 0.4s cubic-bezier(.4,0,.2,1);
+  }
+  .fn-tab svg{ width:24px; height:24px; will-change:transform;
+    transition:opacity 0.28s ease; }
+  .fn-tab:active svg{ transform:scale(0.9); transition:transform 0.14s ease; }
+  .fn-tab.active{ color:var(--indigo); }
+  .fn-tab.active svg{ opacity:0; }
+
+  /* ===== the blue pill (active indicator) ===== */
+  .fn-pill{
+    position:absolute; top:-15px; left:0; width:54px; height:40px;
+    border-radius:20px;
+    background:linear-gradient(160deg, #2c3557 0%, var(--indigo) 58%, #1a1f36 100%);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--cream); z-index:5; pointer-events:none;
+    box-shadow:0 10px 22px -8px rgba(33,40,66,0.5), inset 0 1px 1px rgba(255,255,255,0.14);
+    will-change:transform;
+  }
+  .fn-pill svg{ width:21px; height:21px; will-change:transform,opacity; }
+  .fn-pill-shadow{
+    position:absolute; top:40px; left:0; width:54px; height:12px;
+    border-radius:50%;
+    background:radial-gradient(ellipse, rgba(33,40,66,0.28) 0%, rgba(33,40,66,0) 72%);
+    z-index:4; pointer-events:none; will-change:transform,opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .floatnav.in{ transition:opacity 0.2s ease; transform:none; }
+    .fn-tab svg,.fn-tab.active svg{ transition:opacity 0.12s ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="statusbar"><span>9:41</span><span>Me</span></div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <h1 id="stageTitle">Сегодня</h1>
+      <p id="stageSub">Ваше здоровье сегодня</p>
+    </div>
+
+    <nav class="floatnav" id="floatnav">
+      <svg class="fn-bg" id="fnBg" preserveAspectRatio="none"><path id="fnBgPath"></path></svg>
+
+      <button class="fn-tab active" data-nav="today">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-4.35-9.5-8.8C.7 8.7 2 5 5.4 4.4 7.7 4 9.8 5 12 7.3 14.2 5 16.3 4 18.6 4.4 22 5 23.3 8.7 21.5 12.2 19 16.65 12 21 12 21z"/></svg>
+      </button>
+      <button class="fn-tab" data-nav="health">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </button>
+      <button class="fn-tab" data-nav="meds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 12h6M12 9v6"/></svg>
+      </button>
+      <button class="fn-tab" data-nav="ask">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+      </button>
+      <button class="fn-tab" data-nav="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+      </button>
+
+      <span class="fn-pill-shadow" id="fnPillShadow"></span>
+      <span class="fn-pill" id="fnPill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 21s-7-4.35-9.5-8.8C.7 8.7 2 5 5.4 4.4 7.7 4 9.8 5 12 7.3 14.2 5 16.3 4 18.6 4.4 22 5 23.3 8.7 21.5 12.2 19 16.65 12 21 12 21z"/></svg>
+      </span>
+    </nav>
+  </div>
+</div>
+
+<script>
+(function(){
+  var nav    = document.getElementById('floatnav');
+  var bg     = document.getElementById('fnBg');
+  var path   = document.getElementById('fnBgPath');
+  var pill   = document.getElementById('fnPill');
+  var shadow = document.getElementById('fnPillShadow');
+  var tabs   = Array.prototype.slice.call(nav.querySelectorAll('.fn-tab'));
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var W = 0, H = 64, R = 32, NW = 40;   // notch half-width
+  var REST_D = 3, MAX_D = 14;            // notch depth: resting vs gentle sag
+  var PW = 54;
+  var current = 0, raf = 0;
+  var cx = 0, depth = REST_D;            // live notch state
+
+  var SCREENS = {
+    today:   { title:'Сегодня',      sub:'Ваше здоровье сегодня' },
+    health:  { title:'Мое здоровье', sub:'Все данные в одном месте' },
+    meds:    { title:'Лекарства',    sub:'Расписание приёма' },
+    ask:     { title:'Спросите Me',  sub:'Отвечаю по вашим данным' },
+    profile: { title:'Профиль',      sub:'Настройки и подключения' }
+  };
+
+  function centre(i){ return W / tabs.length * (i + 0.5); }
+  var easeInOut = function(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; };
+  var easeOut   = function(t){ return 1-Math.pow(1-t,3); };
+
+  function measure(){
+    W = nav.clientWidth;
+    bg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  }
+
+  // rounded bar with a smooth symmetric dip of depth d centred at x
+  function barPath(x, d){
+    var lo = R + NW, hi = W - R - NW;
+    x = Math.max(lo, Math.min(hi, x));
+    return 'M' + R + ',0'
+      + 'L' + (x - NW) + ',0'
+      + 'C' + (x - NW*0.42) + ',0 ' + (x - NW*0.52) + ',' + d + ' ' + x + ',' + d
+      + 'C' + (x + NW*0.52) + ',' + d + ' ' + (x + NW*0.42) + ',0 ' + (x + NW) + ',0'
+      + 'L' + (W - R) + ',0'
+      + 'A' + R + ',' + R + ' 0 0 1 ' + W + ',' + R
+      + 'L' + W + ',' + (H - R)
+      + 'A' + R + ',' + R + ' 0 0 1 ' + (W - R) + ',' + H
+      + 'L' + R + ',' + H
+      + 'A' + R + ',' + R + ' 0 0 1 0,' + (H - R)
+      + 'L0,' + R
+      + 'A' + R + ',' + R + ' 0 0 1 ' + R + ',0 Z';
+  }
+
+  function render(){
+    path.setAttribute('d', barPath(cx, depth));
+    var seatY = depth * 0.72;                        // pill nestles into the dip
+    pill.style.transform   = 'translate(' + Math.round(cx - PW/2) + 'px,' + seatY + 'px)';
+    shadow.style.transform = 'translate(' + Math.round(cx - PW/2) + 'px,' + (seatY*0.4) + 'px) scaleX(' + (1 + depth/80) + ')';
+    // icon row: nearby icons get pressed down under the pill
+    for (var k=0;k<tabs.length;k++){
+      var dist = Math.abs(centre(k) - cx);
+      var push = Math.max(0, depth * (1 - dist/118));
+      tabs[k].firstElementChild.style.transform = 'translateY(' + (push*0.55).toFixed(2) + 'px)';
+    }
+  }
+
+  function place(i){ cx = centre(i); depth = REST_D; render(); }
+
+  function jump(to){
+    var c0 = cx, c1 = centre(to);        // start from live position (taps interrupt cleanly)
+    var dur = reduce ? 1 : 320;
+    var t0 = performance.now();
+    cancelAnimationFrame(raf);
+
+    function frame(now){
+      var p = Math.min(1, (now - t0) / dur);
+      cx = c0 + (c1 - c0) * easeOut(p);
+      // bar eases into the bend through the slide, then relaxes
+      depth = REST_D + (MAX_D - REST_D) * easeInOut(Math.min(1, p / 0.5));
+      render();
+      if (p < 1) raf = requestAnimationFrame(frame);
+      else settle();
+    }
+    function settle(){                                             // damped relax to rest
+      var st = performance.now(), d0 = depth;
+      (function relax(now){
+        var p = Math.min(1, (now - st) / 280);
+        depth = d0 + (REST_D - d0) * easeOut(p);
+        render();
+        if (p < 1) raf = requestAnimationFrame(relax);
+      })(st);
+    }
+    raf = requestAnimationFrame(frame);
+    setTimeout(swapIcon, dur * 0.34);
+  }
+
+  function swapIcon(){
+    var svg = pill.querySelector('svg');
+    var src = tabs[current].querySelector('svg');
+    var a = svg.animate([{opacity:1},{opacity:0}], {duration:110, fill:'forwards'});
+    a.onfinish = function(){
+      svg.innerHTML = src.innerHTML;
+      svg.animate([{opacity:0},{opacity:1}], {duration:170, easing:'ease-out', fill:'forwards'});
+    };
+  }
+
+  function go(i){
+    if (i === current) return;
+    var name = tabs[i].dataset.nav;
+    current = i;
+    tabs.forEach(function(t,k){ t.classList.toggle('active', k === i); });
+    jump(i);
+    document.getElementById('stageTitle').textContent = SCREENS[name].title;
+    document.getElementById('stageSub').textContent = SCREENS[name].sub;
+    if (navigator.vibrate) navigator.vibrate(7);
+  }
+
+  tabs.forEach(function(t,i){ t.addEventListener('click', function(){ go(i); }); });
+  addEventListener('resize', function(){ measure(); place(current); });
+
+  // entrance
+  measure(); place(0);
+  pill.style.opacity = shadow.style.opacity = '0';
+  requestAnimationFrame(function(){
+    setTimeout(function(){
+      nav.classList.add('in');
+      if (reduce){ pill.style.opacity = shadow.style.opacity = '1'; return; }
+      setTimeout(function(){
+        var st = performance.now(), dropFrom = -64;
+        (function intro(now){
+          var p = Math.min(1, (now - st) / 620);
+          var e = easeOut(p);
+          cx = centre(0);
+          depth = REST_D + (MAX_D*0.7 - REST_D) * Math.sin(Math.PI * Math.min(1, p*1.1));
+          render();
+          var y = dropFrom + (depth*0.72 - dropFrom) * e;
+          pill.style.opacity = shadow.style.opacity = String(Math.min(1, p*2.2));
+          pill.style.transform   = 'translate(' + Math.round(cx - PW/2) + 'px,' + y + 'px)';
+          shadow.style.transform = 'translate(' + Math.round(cx - PW/2) + 'px,' + (y*0.4) + 'px)';
+          if (p < 1) requestAnimationFrame(intro); else place(0);
+        })(st);
+      }, 240);
+    }, 110);
+  });
+})();
+</script>
+</body>
+</html>

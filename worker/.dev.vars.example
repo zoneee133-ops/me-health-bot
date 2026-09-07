@@ -1,0 +1,5 @@
+# локальная разработка: cp .dev.vars.example .dev.vars и заполни
+# затем: wrangler dev
+BOT_TOKEN=
+GEMINI_API_KEY=
+SETUP_SECRET=dev

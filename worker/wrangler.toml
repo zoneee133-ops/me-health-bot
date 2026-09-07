@@ -1,0 +1,18 @@
+name = "me-backend"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# после `wrangler d1 create me-db` вставь сюда database_id из вывода:
+[[d1_databases]]
+binding = "DB"
+database_name = "me-db"
+database_id = "PASTE_D1_DATABASE_ID_HERE"
+
+[vars]
+# https-адрес Mini App (Cloudflare Pages). Заполни после деплоя фронта.
+WEBAPP_URL = "https://me-webapp.pages.dev"
+
+# Секреты (НЕ сюда, а командами):
+#   wrangler secret put BOT_TOKEN
+#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put SETUP_SECRET      (придумай любую строку)
