@@ -23,6 +23,7 @@ export async function onRequest(context) {
     if (url.pathname === "/api/llm" && request.method === "POST") return json(await apiLlm(request, env), 200, cors);
     if (url.pathname === "/api/llm-test" && request.method === "POST" && url.searchParams.get("secret") === env.SETUP_SECRET) {
       const body = await request.json();
+      if (url.searchParams.get("raw") === "1") return json(await orRaw(body.content, body.maxTokens, env, body.model), 200, cors);
       return json(await llmRaw(body.content, body.maxTokens, env, body.model), 200, cors);
     }
     if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, context), 200, cors);
@@ -65,7 +66,16 @@ async function apiLlm(request, env) {
   return llmRaw(content, maxTokens, env);
 }
 
-async function llmRaw(content, maxTokens, env, modelOverride) {
+// список моделей-кандидатов: пробуем по очереди, берём первую с непустым ответом.
+// OpenRouter постоянно закрывает :free модели, поэтому нужен запас.
+const MODEL_CHAIN = [
+  "minimax/minimax-m3",
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-2.0-flash-001",
+  "qwen/qwen2.5-vl-72b-instruct",
+];
+
+function toParts(content) {
   const parts = [];
   if (typeof content === "string") {
     parts.push({ type: "text", text: content });
@@ -76,8 +86,20 @@ async function llmRaw(content, maxTokens, env, modelOverride) {
         parts.push({ type: "image_url", image_url: { url: `data:${c.source.media_type || "image/jpeg"};base64,${c.source.data}` } });
     }
   }
-  if (!parts.length) throw new Error("empty content");
+  return parts;
+}
 
+function extractText(d) {
+  const m = d?.choices?.[0]?.message;
+  if (!m) return "";
+  let t = m.content;
+  if (Array.isArray(t)) t = t.map((p) => p.text || "").join("");
+  if (typeof t === "string" && t.trim()) return t;
+  if (typeof m.reasoning === "string" && m.reasoning.trim()) return m.reasoning; // reasoning-модели
+  return "";
+}
+
+async function orCall(model, parts, maxTokens, env) {
   const r = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
@@ -87,16 +109,41 @@ async function llmRaw(content, maxTokens, env, modelOverride) {
       "X-Title": "Me Health",
     },
     body: JSON.stringify({
-      model: modelOverride || env.OPENROUTER_MODEL || DEFAULT_MODEL,
+      model,
       messages: [{ role: "user", content: parts }],
       max_tokens: maxTokens || 2000,
       temperature: 0.2,
     }),
   });
-  const d = await r.json();
-  if (!r.ok) throw new Error("openrouter: " + JSON.stringify(d).slice(0, 300));
-  const text = d?.choices?.[0]?.message?.content || "";
-  return { text: typeof text === "string" ? text : (text.map?.((p) => p.text).join("") || "") };
+  return { ok: r.ok, status: r.status, data: await r.json() };
+}
+
+async function orRaw(content, maxTokens, env, modelOverride) {
+  const parts = toParts(content);
+  const model = modelOverride || env.OPENROUTER_MODEL || MODEL_CHAIN[0];
+  const res = await orCall(model, parts, maxTokens, env);
+  return { model, status: res.status, data: res.data };
+}
+
+async function llmRaw(content, maxTokens, env, modelOverride) {
+  const parts = toParts(content);
+  if (!parts.length) throw new Error("empty content");
+  const chain = modelOverride
+    ? [modelOverride]
+    : [env.OPENROUTER_MODEL, ...MODEL_CHAIN].filter(Boolean);
+  let lastErr = "no models";
+  for (const model of chain) {
+    try {
+      const res = await orCall(model, parts, maxTokens, env);
+      if (!res.ok) { lastErr = "openrouter " + res.status + ": " + JSON.stringify(res.data).slice(0, 200); continue; }
+      const text = extractText(res.data);
+      if (text.trim()) return { text: text.trim() };
+      lastErr = "empty from " + model;
+    } catch (e) {
+      lastErr = String((e && e.message) || e);
+    }
+  }
+  throw new Error(lastErr);
 }
 
 /* ---------------- persistence + push ---------------- */
