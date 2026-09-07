@@ -72,9 +72,8 @@ async function apiLlm(request, env) {
 // список моделей-кандидатов: пробуем по очереди, берём первую с непустым ответом.
 // OpenRouter постоянно закрывает :free модели, поэтому нужен запас.
 const MODEL_CHAIN = [
+  "google/gemini-2.5-flash",
   "minimax/minimax-m3",
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.0-flash-001",
   "qwen/qwen2.5-vl-72b-instruct",
 ];
 

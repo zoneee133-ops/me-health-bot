@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Me — здоровье это не сложно</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23212842'/%3E%3Cpath d='M14 46V20l9 16 9-16v26' fill='none' stroke='%23F0E7D5' stroke-width='5' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237E9A97'/%3E%3Cpath d='M32 14c3 10 8 15 18 18-10 3-15 8-18 18-3-10-8-15-18-18 10-3 15-8 18-18z' fill='%23fff'/%3E%3C/svg%3E">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
   /* адрес backend (Cloudflare Worker). Заполни после `wrangler deploy`. */
@@ -380,6 +380,7 @@
   #screen-today.intro .status-card:nth-child(2){ animation-delay:0.22s; }
   #screen-today.intro .status-card:nth-child(3){ animation-delay:0.30s; }
   #screen-today.intro .status-card:nth-child(4){ animation-delay:0.38s; }
+  #screen-today.intro .status-card:nth-child(5){ animation-delay:0.46s; }
   #screen-today.intro .section-label{ animation:introRise 0.5s cubic-bezier(.16,1,.3,1) 0.48s both; }
   #screen-today.intro #todayUploadBlood{ animation:introRise 0.5s cubic-bezier(.16,1,.3,1) 0.56s both; }
   #screen-today.intro #todayOpenHealth{ animation:introRise 0.5s cubic-bezier(.16,1,.3,1) 0.64s both; }
@@ -1002,7 +1003,8 @@
   <!-- ONBOARDING -->
   <div class="onboarding" id="onboarding">
     <div class="ob-step active" data-step="0">
-      <img src="logomark.jpg" alt="Me" style="width:132px;height:auto;margin-bottom:18px;mix-blend-mode:multiply;">
+      <img src="logomark.png" alt="Me" style="width:120px;height:120px;object-fit:contain;margin-bottom:18px;mix-blend-mode:multiply;">
+      <h1 class="ob-title" style="font-weight:700;letter-spacing:-0.01em;">Me</h1>
       <p class="ob-text">Персональный ИИ-помощник по здоровью. Понимает ваши анализы, рецепты и визиты к врачу — и объясняет их простыми словами.</p>
     </div>
     <div class="ob-step" data-step="1">
@@ -1030,7 +1032,7 @@
         <p class="title">Ваше здоровье сегодня</p>
       </div>
 
-      <div class="status-grid" id="statusGrid">
+      <div class="status-grid injury-gone" id="statusGrid">
         <!-- Card 1: Кровь и Биохимия -->
         <div class="status-card is-empty" id="cardBlood" data-card="blood">
           <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3s6 7 6 11a6 6 0 01-12 0c0-4 6-11 6-11z"/></svg></span>
@@ -1040,7 +1042,7 @@
         </div>
 
         <!-- Card 2: Травмы и Реабилитация (long-press to delete) -->
-        <div class="status-card" id="cardInjury" data-card="injury">
+        <div class="status-card is-hidden" id="cardInjury" data-card="injury">
           <button class="sc-close" id="injuryClose" aria-label="Удалить">×</button>
           <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
           <p class="sc-label">Травмы и реабилитация</p>
@@ -1139,20 +1141,11 @@
             <path d="M12 16V4M12 4l-4 4M12 4l4 4"/>
             <path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/>
           </svg>
-          <p class="u-title">Сфотографировать рецепт</p>
-          <p class="u-sub">Даже неразборчивый почерк — попробуем распознать</p>
+          <p class="u-title">Сфотографировать или загрузить из файлов</p>
+          <p class="u-sub">Даже неразборчивый почерк — попробуем распознать. Фото, скан или PDF</p>
         </label>
-        <input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment">
-
-        <label class="upload-zone" for="fileInputFile" id="fileLabel">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="margin:0 auto;display:block;color:var(--ink);">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-            <path d="M14 2v6h6M12 18v-6M9 15h6"/>
-          </svg>
-          <p class="u-title">Загрузить из файлов</p>
-          <p class="u-sub">Фото, скан или PDF</p>
-        </label>
-        <input type="file" id="fileInputFile" accept="image/*,application/pdf">
+        <input type="file" id="fileInput" accept="image/*,application/pdf">
+        <input type="file" id="fileInputFile" accept="image/*,application/pdf" hidden>
 
         <div id="uploadPreviewWrap" style="display:none; margin-top:4px; margin-bottom:10px; border-radius:16px; overflow:hidden; border:1px solid var(--border);">
           <img id="uploadPreviewImg" style="width:100%; display:block; max-height:170px; object-fit:cover;">
@@ -1205,10 +1198,10 @@
           <span class="r-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
           <div class="r-main">
             <p class="r-title">Отображать блок «Травмы и реабилитация»</p>
-            <p class="r-sub">Можно скрыть с главного экрана долгим нажатием</p>
+            <p class="r-sub">По умолчанию выключен. Долгое нажатие на карточку — скрыть</p>
           </div>
         </div>
-        <label class="switch"><input type="checkbox" id="toggleInjuryCard" checked><span class="slider"></span></label>
+        <label class="switch"><input type="checkbox" id="toggleInjuryCard"><span class="slider"></span></label>
       </div>
 
       <p class="section-label">О приложении</p>
@@ -1447,6 +1440,24 @@ async function claudeMessage(content, maxTokens){
 }
 function stripFence(t){ return t.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim(); }
 
+/* терпимый парсер: модель иногда добавляет текст до/после JSON или оборачивает объектом */
+function parseJSONLoose(raw){
+  var t = stripFence(String(raw || ''));
+  try { return JSON.parse(t); } catch(e){}
+  var a = t.indexOf('['), b = t.lastIndexOf(']');
+  if (a !== -1 && b > a){ try { return JSON.parse(t.slice(a, b+1)); } catch(e){} }
+  var c = t.indexOf('{'), d = t.lastIndexOf('}');
+  if (c !== -1 && d > c){ try { return JSON.parse(t.slice(c, d+1)); } catch(e){} }
+  throw new Error('bad json');
+}
+/* достаёт массив препаратов из ответа любой формы */
+function pickMeds(parsed){
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && Array.isArray(parsed.meds)) return parsed.meds;
+  if (parsed && Array.isArray(parsed.items)) return parsed.items;
+  return [];
+}
+
 /* файл (фото или PDF) -> массив image-частей для claudeMessage. PDF рендерим через pdf.js. */
 var PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 function loadScriptOnce(src){ return new Promise(function(res,rej){ var s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=function(){ rej(new Error('script '+src)); }; document.head.appendChild(s); }); }
@@ -1537,11 +1548,20 @@ var obStep = 0;
 var obSteps = document.querySelectorAll('.ob-step');
 var obDots = document.querySelectorAll('.ob-dot');
 var obNextBtn = document.getElementById('obNext');
+/* анимация появления главного экрана — каждый вход */
+function playTodayIntro(delay){
+  var today = document.getElementById('screen-today');
+  if (!today) return;
+  setTimeout(function(){ today.classList.add('intro'); }, delay || 60);
+  setTimeout(function(){ today.classList.remove('intro'); }, (delay || 60) + 1700);
+}
+
 /* онбординг только при первом входе */
 try {
   if (localStorage.getItem('me_ob_done')) {
     var obEl = document.getElementById('onboarding');
     if (obEl) obEl.style.display = 'none';
+    playTodayIntro(80);
   }
 } catch(e){}
 if (obNextBtn) {
@@ -1561,10 +1581,7 @@ if (obNextBtn) {
         ob.classList.add('leaving');
         setTimeout(function(){ ob.style.display = 'none'; }, 460);
       }
-      if (today){
-        setTimeout(function(){ today.classList.add('intro'); }, 120);
-        setTimeout(function(){ today.classList.remove('intro'); }, 1800);
-      }
+      if (today) playTodayIntro(120);
     }
   });
 }
@@ -1674,7 +1691,7 @@ function safeSetPref(key, value){
 }
 
 var prefs = {
-  showInjuryCard: safeGetPref('me_showInjury', '1') !== '0'
+  showInjuryCard: safeGetPref('me_showInjury', '0') === '1'
 };
 
 function syncInjuryGridLayout(){
@@ -1929,7 +1946,7 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
     const raw = await claudeMessage(imgs.concat([
       { type:'text', text:'Это результаты анализа крови/биохимии (фото, скан, PDF или почерк, возможно несколько страниц). Распознай все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"короткое понятное название показателя","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"объяснение для человека без медицинского образования"}],"summary":"общий вывод по-человечески"}\n\nОЧЕНЬ ВАЖНО — язык:\n- Пиши так, будто объясняешь другу или бабушке, которые НИЧЕГО не знают про медицину.\n- ЗАПРЕЩЕНО использовать медицинские термины и аббревиатуры (эритроциты, гематокрит, MCHC, MCV, СОЭ, ретикулоциты и т.п.) без объяснения. Если без термина никак — сразу простыми словами в скобках, что это.\n- В "name" давай короткое бытовое название (например: "Красные клетки крови", "Белые клетки крови", "Свёртывание крови", "Гемоглобин (белок, переносящий кислород)"). Не пиши длинные лабораторные формулировки и латинские буквы.\n- В "plain": 1-2 коротких предложения. Что этот показатель показывает + что означает именно это значение. Если отклонение — спокойно объясни, из-за чего так бывает в обычной жизни (питьё, спорт, еда, недосып). НИКАКОЙ паники, НИКАКИХ страшных слов, НЕ пугай, НЕ ставь диагноз.\n- "summary": КОРОТКО, 1 предложение (максимум 2). Спокойно: в целом нормально или что показать врачу. Без терминов, без перечисления всех показателей.\nНе выдумывай показатели, которых нет на изображении. Только JSON.' }
     ]), 4000);
-    const parsed = JSON.parse(stripFence(raw));
+    const parsed = parseJSONLoose(raw);
     if (!parsed.markers || !parsed.markers.length) throw new Error('no markers');
     const bt = addBloodTest(parsed);
     box.style.display = 'none';
@@ -2497,10 +2514,10 @@ if (visitRxInput) {
     try {
       const imgs = await fileToImageParts(file);
       const raw = await claudeMessage(imgs.concat([
-        { type:'text', text:'Это фото или PDF рецепта (возможно рукописный). Извлеки препараты и дозировки. Ответь СТРОГО JSON-массивом без markdown:\\n[{"name":"...","dosage":"...","frequency_per_day":2,"suggested_times":["09:00","21:00"]}]\\nЕсли неразборчиво — наиболее вероятное чтение. Не выдумывай лишние препараты.' }
-      ]), 1000);
-      const meds = JSON.parse(stripFence(raw));
-      if (Array.isArray(meds) && meds.length) {
+        { type:'text', text:'Это фото/скан/PDF рецепта (часто рукописный). Распознай препараты и дозы, читай по контексту, неуверенное помечай "?". Не выдумывай препараты и ФИО. Ответь СТРОГО JSON без markdown:\n{"meds":[{"name":"...","dosage":"...","schedule":"схема словами","frequency_per_day":число или null,"suggested_times":["09:00","21:00"]}]}\nЕсли рецепта нет — {"meds":[]}. Только JSON.' }
+      ]), 3500);
+      const meds = pickMeds(parseJSONLoose(raw));
+      if (meds.length) {
         var _t = todayISO();
         meds.forEach(function(m){ m.startDate = _t; addMedication(m); });
         if (window.__meSaveMeds) window.__meSaveMeds();
@@ -2538,7 +2555,7 @@ document.getElementById('qNextBtn').addEventListener('click', async () => {
   try {
     const answersText = visitQuestions.map(q => `${q.q} → ${pendingVisit[q.key] || '—'}`).join('\n');
     const raw = await claudeMessage(`Структурируй ответы пациента после приёма врача в JSON без markdown, на русском:\n{"doctorType":"тип врача","notes":["краткое резюме того, что сказал врач"],"medication":"препараты и частота или null","labs":"какие анализы сдать или null","followUp":"когда прийти снова или null"}\nОтветы:\n${answersText}`, 500);
-    const parsed = JSON.parse(stripFence(raw));
+    const parsed = parseJSONLoose(raw);
     saveVisit(parsed);
   } catch (err) {
     // fallback without API
@@ -2655,12 +2672,13 @@ analyzeBtn.addEventListener('click', async () => {
   analyzeBtn.style.display = 'none'; analyzeStatus.style.display = 'flex'; analyzeError.style.display = 'none';
   try {
     const raw = await claudeMessage(uploadedParts.concat([
-      { type:'text', text:'Это фото или PDF рецепта врача, возможно с неразборчивым почерком. Разбери все препараты. Ответь СТРОГО JSON-массивом без markdown, на русском:\\n[{"name":"название","dosage":"доза, напр. 500 мг","frequency_per_day":число,"suggested_times":["HH:MM",...]}]\\nВремена распредели равномерно между 08:00 и 22:00. Если неразборчиво — сделай наиболее вероятное предположение, не выдумывай препараты которых нет.' }
-    ]), 1200);
-    const meds = JSON.parse(stripFence(raw));
-    if (!Array.isArray(meds) || !meds.length) throw new Error('no meds');
+      { type:'text', text:'Это фото/скан/PDF рецепта или назначения врача (часто рукописный, почерк трудный, несколько страниц). Задача — распознать все препараты и добавки и схему приёма.\n\nПравила:\n- Читай по контексту. Если слово неразборчиво — дай наиболее вероятный вариант и добавь "?" в конце названия.\n- НЕ придумывай препараты, которых на листе нет. НЕ придумывай ФИО пациента.\n- Единицы и числа переписывай ровно как в рецепте (мг, мкг, таб, кап, мл; "1/2 таб"; "через день").\n- Схему приёма (снижение дозы, курсами, "1 мес", "6 мес", "через день") запиши словами в поле schedule.\n\nОтветь СТРОГО JSON без markdown:\n{"raw_text":"весь распознанный текст построчно","meds":[{"name":"препарат (с ? если не уверен)","dosage":"доза как в рецепте","schedule":"схема приёма словами","frequency_per_day":число или null,"suggested_times":["HH:MM"]}]}\nЕсли на изображении нет рецепта — {"raw_text":"...","meds":[]}. Только JSON.' }
+    ]), 4000);
+    const parsed = parseJSONLoose(raw);
+    const meds = pickMeds(parsed);
+    if (!meds.length) throw new Error('no meds');
     uploadPreviewWrap.style.display = 'none';
-    confirmRxMeds(meds);
+    confirmRxMeds(meds, parsed.raw_text || '');
   } catch(err){
     analyzeError.style.display = 'block';
     analyzeError.textContent = 'Не получилось распознать автоматически. Попробуйте ввести вручную.';
@@ -2934,17 +2952,22 @@ if (manualMedDone) {
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 
-function confirmRxMeds(meds){
+function confirmRxMeds(meds, rawText){
   var rows = meds.map(function(m){
     var t = (m.suggested_times && m.suggested_times.length) ? m.suggested_times : suggestTimes(m.frequency_per_day || 2);
+    var sched = m.schedule ? '<p style="margin:3px 0 0;font-size:12.5px;color:var(--ink-3);line-height:1.4;">' + m.schedule + '</p>' : '';
     return '<div style="padding:11px 0;border-bottom:1px solid var(--border-soft);">' +
       '<p style="margin:0;font-weight:600;font-size:15px;">' + (m.name || 'Без названия') + '</p>' +
-      '<p style="margin:3px 0 0;font-size:13px;color:var(--ink-2);">' + (m.dosage ? m.dosage + ' · ' : '') + 'приём в ' + t.join(', ') + '</p></div>';
+      '<p style="margin:3px 0 0;font-size:13px;color:var(--ink-2);">' + (m.dosage ? m.dosage + ' · ' : '') + 'напоминать в ' + t.join(', ') + '</p>' + sched + '</div>';
   }).join('');
+  var rawBlock = rawText
+    ? '<details style="margin:12px 0 4px;"><summary style="font-size:13px;color:var(--ink-2);cursor:pointer;">Показать распознанный текст</summary>' +
+      '<pre style="white-space:pre-wrap;font-size:12px;color:var(--ink-3);margin:8px 0 0;font-family:inherit;line-height:1.5;">' + String(rawText).replace(/[<>]/g,'') + '</pre></details>'
+    : '';
   openSheet(
     '<p class="sheet-title">Врач назначил</p>' +
-    '<p class="sheet-sub">Проверьте — всё верно?</p>' + rows +
-    '<p style="font-size:13px;color:var(--ink-2);line-height:1.5;margin:14px 0 12px;">Начать приём с сегодня и внести в календарь? Me будет напоминать в Telegram, когда придёт время.</p>' +
+    '<p class="sheet-sub">Почерк распознан примерно — сверьте названия и дозы с рецептом.</p>' + rows + rawBlock +
+    '<p style="font-size:13px;color:var(--ink-2);line-height:1.5;margin:14px 0 12px;">Внести в календарь и напоминать в Telegram, когда придёт время приёма?</p>' +
     '<button class="cta accent" id="rxYes">Да, внести в календарь</button>' +
     '<button class="cta secondary" id="rxNo" style="margin-top:8px;">Не сейчас</button>'
   );
@@ -3154,7 +3177,7 @@ function showToast(msg){
     tg.ready();
     tg.expand();
     try { tg.setHeaderColor('#F0E7D5'); tg.setBackgroundColor('#E4D9C1'); } catch(e){}
-    try { tg.enableClosingConfirmation(); } catch(e){}
+    try { tg.disableClosingConfirmation(); } catch(e){}
     // реальное имя пользователя Telegram
     var u = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
     var name = (u.first_name || '').trim();
