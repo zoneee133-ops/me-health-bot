@@ -407,6 +407,22 @@
   .ob-step{ position:absolute; inset:0; padding:0 26px 40px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; opacity:0; visibility:hidden; transition:opacity 0.25s ease; }
   .ob-step.active{ opacity:1; visibility:visible; }
   .ob-mark{ width:74px; height:74px; border-radius:20px; background:var(--accent); display:flex; align-items:center; justify-content:center; margin-bottom:26px; }
+  .ob-logo{
+    width:100px; height:100px; border-radius:26px; margin-bottom:22px; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(125% 125% at 32% 24%, #f0f4f3 0%, #d3ddda 40%, #a6bcb8 72%, #7e9a97 100%);
+    box-shadow:0 14px 34px -14px rgba(126,154,151,.6), inset 0 1px 2px rgba(255,255,255,.65), inset 0 0 0 1px rgba(255,255,255,.25);
+  }
+  .ob-logo::before{
+    content:""; position:absolute; left:-30%; top:-15%; width:160%; height:65%;
+    background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0));
+    transform:rotate(-13deg); pointer-events:none;
+  }
+  .ob-logo-spark{ width:38px; height:38px; position:relative; z-index:1; filter:drop-shadow(0 2px 5px rgba(126,154,151,.5)); }
+  .ob-logo-spark::before{
+    content:""; position:absolute; inset:0; background:#fff;
+    clip-path:polygon(50% 0%, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0% 50%, 42% 42%);
+  }
   .ob-title{ font-size:26px; font-weight:700; letter-spacing:-0.02em; margin:0 0 10px; }
   .ob-text{ font-size:15px; color:var(--ink-2); line-height:1.5; margin:0 0 36px; max-width:280px; }
   .ob-dots{ display:flex; gap:6px; position:absolute; bottom:120px; left:0; right:0; justify-content:center; }
@@ -447,6 +463,7 @@
     box-shadow:0 -4px 40px -8px rgba(33,40,66,0.20), inset 0 0 0 1px var(--border-soft);
     transform:translateY(18px) scale(0.98);
     z-index:12;
+    transition:opacity 0.4s cubic-bezier(.32,.72,0,1), visibility 0.4s, transform 0.44s cubic-bezier(.34,1.12,.5,1), max-height 0.5s cubic-bezier(.4,0,.2,1);
   }
   #screen-ask.active{ transform:translateY(0) scale(1); }
   #screen-ask .ask-header{ display:none; }
@@ -1063,7 +1080,7 @@
   <!-- ONBOARDING -->
   <div class="onboarding" id="onboarding">
     <div class="ob-step active" data-step="0">
-      <img src="logomark.png" alt="Me" style="width:120px;height:120px;object-fit:contain;margin-bottom:18px;mix-blend-mode:multiply;">
+      <div class="ob-logo"><span class="ob-logo-spark"></span></div>
       <h1 class="ob-title" style="font-weight:700;letter-spacing:-0.01em;">Me</h1>
       <p class="ob-text">Персональный ИИ-помощник по здоровью. Понимает ваши анализы, рецепты и визиты к врачу — и объясняет их простыми словами.</p>
     </div>
@@ -1609,11 +1626,13 @@ function baseHealthContext(){
 /* ================= root navigation ================= */
 var askReturn = 'today';   // section to keep behind the Ask panel
 function openAsk(){
-  document.getElementById('screen-ask').classList.add('active');
+  var p = document.getElementById('screen-ask');
+  p.classList.add('active');
   document.getElementById('askScrim').classList.add('show');
   document.getElementById('chatInputBar').style.display = 'flex';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.nav === 'ask'));
   if (window.fnSync) window.fnSync('ask');
+  setTimeout(function(){ if (typeof fitAskPanel === 'function') fitAskPanel(); }, 30);
 }
 function closeAsk(){
   document.getElementById('screen-ask').classList.remove('active');
@@ -1663,6 +1682,14 @@ function playTodayIntro(delay){
   setTimeout(function(){ today.classList.add('intro'); }, delay || 60);
   setTimeout(function(){ today.classList.remove('intro'); }, (delay || 60) + 1700);
 }
+
+/* сброс после /restart confirm — чистим локальные флаги, показываем онбординг */
+try {
+  var _sp = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.start_param) || '';
+  if (/(^|[?&])fresh=1/.test(location.search) || _sp === 'fresh' || _sp === '1') {
+    ['me_ob_done','me_showInjury'].forEach(function(k){ try { localStorage.removeItem(k); } catch(e){} });
+  }
+} catch(e){}
 
 /* онбординг только при первом входе */
 try {
@@ -3300,11 +3327,12 @@ async function fillMissingDurations(norm){
         return (i+1) + ') ' + m.name + ' — этапы: ' + m.stages.map(function(s){ return (s.dose || 'доза') + (s.durationDays ? ' (' + s.durationDays + ' дн, указано врачом)' : ' (не указано)'); }).join('; ');
       }).join('\n') + '\n\n' +
       'Правила:\n' +
-      '- Если у препарата НЕСКОЛЬКО этапов с разной дозой (снижение/повышение) — это КУРС С КОНЦОМ. Дай реальные дни на каждый этап (обычно 14-30). НИКОГДА не ставь 0 для такого препарата.\n' +
-      '- 0 можно ставить ТОЛЬКО для витаминов/БАД/поддерживающей терапии с одним этапом (принимается постоянно).\n' +
-      '- Учитывай безопасность: сосудосуживающие капли в нос — не дольше 5-7 дней; антибиотики — обычно 5-10 дней; и т.п.\n\n' +
+      '- ВСЕГДА дай конкретное число дней для каждого этапа. НИКОГДА не ставь 0 и не пиши «постоянно».\n' +
+      '- Многоэтапный курс (снижение/повышение дозы) — реальные дни на этап (обычно 14-30).\n' +
+      '- Витамины / БАД / добавки (Омега-3, магний, железо, витамины) — ставь МАКСИМАЛЬНЫЙ безопасный срок непрерывного приёма (обычно 30-90 дней), после которого нужен перерыв или контроль. В why напиши это.\n' +
+      '- Безопасность: сосудосуживающие капли в нос — не дольше 5-7 дней; антибиотики — 5-10 дней; НПВС (обезболивающие) — 5-14 дней; и т.п.\n\n' +
       'Верни СТРОГО JSON-массив, по одному объекту на препарат В ТОМ ЖЕ ПОРЯДКЕ:\n' +
-      '[{"stage_days":[число дней на каждый этап; для указанных врачом — то же число],"why":"короткое пояснение простыми словами"}]\n' +
+      '[{"stage_days":[число дней на каждый этап; для указанных врачом — то же число],"why":"короткое пояснение простыми словами, до какого срока безопасно"}]\n' +
       'Только JSON.';
     var raw = await claudeMessage(q, 900, '');
     var arr = parseJSONLoose(raw);
@@ -3327,18 +3355,19 @@ async function fillMissingDurations(norm){
   return norm;
 }
 
-/* гарантируем, что у многоэтапного курса есть конец (иначе календарь уходит в бесконечность) */
+/* у каждого курса ДОЛЖЕН быть конец — бесконечного приёма не бывает */
 function finalizeMed(m){
   if (m.asNeeded) return m;
-  if (m.stages.length > 1){
-    m.stages.forEach(function(s){
-      if (!s.durationDays){
-        s.durationDays = 30;
-        s.estimated = true;
-        if (!s.estWhy) s.estWhy = 'В рецепте не указан срок этапа — Me поставил 30 дней. Уточните у врача.';
-      }
-    });
-  }
+  var multi = m.stages.length > 1;
+  m.stages.forEach(function(s){
+    if (!s.durationDays){
+      s.durationDays = multi ? 30 : 60;
+      s.estimated = true;
+      if (!s.estWhy) s.estWhy = multi
+        ? 'В рецепте не указан срок этапа — Me поставил 30 дней. Уточните у врача.'
+        : 'В рецепте не указан срок — Me поставил максимальный безопасный: 60 дней, дальше нужен перерыв или контроль врача.';
+    }
+  });
   return m;
 }
 
@@ -3736,9 +3765,25 @@ if (chatFileInput) chatFileInput.addEventListener('change', async function(){
   renderChatAttachRow();
 });
 
+function fitAskPanel(){
+  var p = document.getElementById('screen-ask');
+  if (!p || !p.classList.contains('active')) return;
+  var vh = window.innerHeight || 700;
+  var prev = p.style.maxHeight;
+  p.style.maxHeight = 'none';
+  var need = p.scrollHeight;
+  p.style.maxHeight = prev || Math.round(vh * 0.42) + 'px';
+  // форсируем reflow, затем плавно тянемся к нужной высоте (в пределах 32%–82% экрана)
+  void p.offsetHeight;
+  var target = Math.max(vh * 0.32, Math.min(need + 2, vh * 0.82));
+  p.style.maxHeight = Math.round(target) + 'px';
+}
 function addBubble(role, text){
   const div = document.createElement('div'); div.className = 'bubble ' + role; div.textContent = text;
-  chatScroll.appendChild(div); chatScroll.scrollTop = chatScroll.scrollHeight; return div;
+  chatScroll.appendChild(div); chatScroll.scrollTop = chatScroll.scrollHeight;
+  fitAskPanel();
+  setTimeout(function(){ chatScroll.scrollTop = chatScroll.scrollHeight; }, 460);
+  return div;
 }
 async function sendChat(text){
   text = (text || '').trim();
@@ -3752,12 +3797,15 @@ async function sendChat(text){
   try {
     var imgParts = [];
     atts.forEach(function(a){ imgParts = imgParts.concat(a.parts); });
+    var wantsLong = /подробн|развернут|все вариант|какие вариант|расскажи про|поэтапно|по шагам/i.test(text || '');
     var promptText = 'Данные пользователя (используй, если уместно):\n' + baseHealthContext() +
-      '\n\nВопрос пользователя: ' + (text || 'Посмотри прикреплённый документ/снимок и объясни простыми словами, что здесь важно.');
+      '\n\nВопрос пользователя: ' + (text || 'Посмотри прикреплённый документ/снимок и очень коротко скажи, что здесь важно.') +
+      (wantsLong ? '' : '\n\nОтветь ОЧЕНЬ КРАТКО — 2-4 предложения.');
     var content = imgParts.length ? imgParts.concat([{ type:'text', text: promptText }]) : promptText;
-    const raw = await claudeMessage(content, 1100);
+    const raw = await claudeMessage(content, wantsLong ? 1200 : 450);
     loadingBubble.textContent = raw;
-  } catch(err){ loadingBubble.textContent = 'Что-то пошло не так. Попробуйте снова.'; }
+    fitAskPanel();
+  } catch(err){ loadingBubble.textContent = 'Что-то пошло не так. Попробуйте снова.'; fitAskPanel(); }
 }
 chatSend.addEventListener('click', () => sendChat(chatInput.value));
 chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(chatInput.value); });
