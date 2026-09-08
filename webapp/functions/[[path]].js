@@ -5,6 +5,8 @@
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const GITHUB_URL = "https://models.github.ai/inference/chat/completions";
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 // универсальный медицинский промпт — применяется ко всем текстовым запросам,
 // если фронтенд не прислал свой system.
@@ -83,13 +85,28 @@ async function apiLlm(request, env) {
   return llmRaw(content, maxTokens, env, null, system);
 }
 
-// список моделей-кандидатов: пробуем по очереди, берём первую с непустым ответом.
-// OpenRouter постоянно закрывает :free модели, поэтому нужен запас.
-const MODEL_CHAIN = [
-  "google/gemini-2.5-flash",
-  "minimax/minimax-m3",
-  "qwen/qwen2.5-vl-72b-instruct",
-];
+// Провайдеры пробуем по очереди — первый с непустым ответом побеждает.
+// GitHub Models и Gemini free — бесплатные; OpenRouter — платный запас.
+// Чтобы включить бесплатный провайдер, добавь в Pages секрет GITHUB_TOKEN или GEMINI_KEY.
+function buildChain(env, override) {
+  if (override) return [{ prov: "openrouter", model: override }];
+  const c = [];
+  if (env.GEMINI_KEY) {
+    c.push({ prov: "gemini", model: "gemini-2.5-flash" });
+    c.push({ prov: "gemini", model: "gemini-2.0-flash" });
+  }
+  if (env.GITHUB_TOKEN) {
+    c.push({ prov: "github", model: "openai/gpt-4o" });
+    c.push({ prov: "github", model: "openai/gpt-4o-mini" });
+  }
+  if (env.OPENROUTER_KEY) {
+    if (env.OPENROUTER_MODEL) c.push({ prov: "openrouter", model: env.OPENROUTER_MODEL });
+    c.push({ prov: "openrouter", model: "google/gemini-2.5-flash" });
+    c.push({ prov: "openrouter", model: "minimax/minimax-m3" });
+    c.push({ prov: "openrouter", model: "qwen/qwen2.5-vl-72b-instruct" });
+  }
+  return c;
+}
 
 function toParts(content) {
   const parts = [];
@@ -115,49 +132,49 @@ function extractText(d) {
   return "";
 }
 
-async function orCall(model, parts, maxTokens, env, system) {
+async function provCall(prov, model, parts, maxTokens, env, system) {
   const messages = [];
   if (system !== "") messages.push({ role: "system", content: system || SYSTEM_MED });
   messages.push({ role: "user", content: parts });
-  const r = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.OPENROUTER_KEY}`,
-      "HTTP-Referer": env.WEBAPP_URL || "https://t.me",
-      "X-Title": "Me Health",
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      max_tokens: maxTokens || 2000,
-      temperature: 0.2,
-    }),
-  });
+  const body = { model, messages, max_tokens: maxTokens || 2000, temperature: 0.2 };
+  let url, headers = { "Content-Type": "application/json" };
+  if (prov === "github") {
+    url = GITHUB_URL;
+    headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  } else if (prov === "gemini") {
+    url = GEMINI_URL;
+    headers.Authorization = `Bearer ${env.GEMINI_KEY}`;
+  } else {
+    url = OPENROUTER_URL;
+    headers.Authorization = `Bearer ${env.OPENROUTER_KEY}`;
+    headers["HTTP-Referer"] = env.WEBAPP_URL || "https://t.me";
+    headers["X-Title"] = "Me Health";
+  }
+  const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
   return { ok: r.ok, status: r.status, data: await r.json() };
 }
 
 async function orRaw(content, maxTokens, env, modelOverride, system) {
   const parts = toParts(content);
-  const model = modelOverride || env.OPENROUTER_MODEL || MODEL_CHAIN[0];
-  const res = await orCall(model, parts, maxTokens, env, system);
-  return { model, status: res.status, data: res.data };
+  const chain = buildChain(env, modelOverride);
+  const a = chain[0] || { prov: "openrouter", model: "google/gemini-2.5-flash" };
+  const res = await provCall(a.prov, a.model, parts, maxTokens, env, system);
+  return { provider: a.prov, model: a.model, status: res.status, data: res.data };
 }
 
 async function llmRaw(content, maxTokens, env, modelOverride, system) {
   const parts = toParts(content);
   if (!parts.length) throw new Error("empty content");
-  const chain = modelOverride
-    ? [modelOverride]
-    : [env.OPENROUTER_MODEL, ...MODEL_CHAIN].filter(Boolean);
+  const chain = buildChain(env, modelOverride);
+  if (!chain.length) throw new Error("no LLM provider configured (set GITHUB_TOKEN / GEMINI_KEY / OPENROUTER_KEY)");
   let lastErr = "no models";
-  for (const model of chain) {
+  for (const a of chain) {
     try {
-      const res = await orCall(model, parts, maxTokens, env, system);
-      if (!res.ok) { lastErr = "openrouter " + res.status + ": " + JSON.stringify(res.data).slice(0, 200); continue; }
+      const res = await provCall(a.prov, a.model, parts, maxTokens, env, system);
+      if (!res.ok) { lastErr = a.prov + "/" + a.model + " " + res.status + ": " + JSON.stringify(res.data).slice(0, 180); continue; }
       const text = extractText(res.data);
       if (text.trim()) return { text: text.trim() };
-      lastErr = "empty from " + model;
+      lastErr = "empty from " + a.prov + "/" + a.model;
     } catch (e) {
       lastErr = String((e && e.message) || e);
     }
