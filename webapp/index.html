@@ -1105,7 +1105,7 @@
     <!-- TODAY -->
     <div class="screen active" id="screen-today">
       <div class="greeting-block">
-        <p class="greet-line" id="greetLine">Доброе утро, Роберт</p>
+        <p class="greet-line" id="greetLine">Здравствуйте</p>
         <p class="title">Ваше здоровье сегодня</p>
       </div>
 
@@ -1608,7 +1608,9 @@ async function fileToImageParts(file){
 }
 
 function baseHealthContext(){
-  let ctx = `Пользователя зовут Роберт. Me — персональный ИИ-помощник по здоровью: помогает понимать анализы, рецепты и визиты к врачу простыми словами.`;
+  var tgu = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) || {};
+  var nm = (tgu.first_name || '').trim();
+  let ctx = (nm ? 'Пользователя зовут ' + nm + '. ' : '') + `Me — персональный ИИ-помощник по здоровью: помогает понимать анализы, рецепты и визиты к врачу простыми словами.`;
   if (state.bloodTests.length){
     const bt = state.bloodTests[state.bloodTests.length-1];
     ctx += `\n- Последний анализ крови (${bt.date}): ${bt.markersTotal} показателей, ${bt.needsAttention.length} требуют внимания: ${bt.needsAttention.map(m=>m.name+' '+m.from+'→'+m.to).join(', ') || 'нет'}`;
@@ -1617,8 +1619,16 @@ function baseHealthContext(){
     const v = state.visits[state.visits.length-1];
     ctx += `\n- Последний визит к врачу (${v.date}, ${v.doctorType}): ${(v.notes||[]).join('; ')}${v.medication ? '; назначено: '+v.medication : ''}${v.labs ? '; анализы: '+v.labs : ''}${v.followUp ? '; повторно: '+v.followUp : ''}`;
   }
+  if (state.scans && state.scans.length){
+    const sc = state.scans[state.scans.length-1];
+    ctx += `\n- Последнее исследование (${sc.study}${sc.area ? ', '+sc.area : ''}): ${sc.conclusion || ''}${sc.recommendation ? ' Рекомендация: '+sc.recommendation : ''}`;
+  }
   if (state.meds.length){
-    ctx += `\n- Текущие лекарства: ${state.meds.map(m=>m.name+' '+m.dosage).join(', ')}`;
+    ctx += `\n- Текущие лекарства: ${state.meds.map(function(m){
+      var a = (typeof activeStage === 'function') ? activeStage(m, todayISO()) : null;
+      var st = a ? a.stage : (m.stages && m.stages[0]);
+      return m.name + (st && st.dose ? ' ' + st.dose : '');
+    }).join(', ')}`;
   }
   return ctx;
 }
@@ -2619,7 +2629,9 @@ function renderBloodStep3(bt){
     const all = selected.includes('f_all');
     const lines = [];
     lines.push('МЕДИЦИНСКАЯ ВЫПИСКА (сформировано приложением Me)');
-    lines.push('Пациент: Роберт');
+    var _tgu = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) || {};
+    var _pn = [( _tgu.first_name||'').trim(), (_tgu.last_name||'').trim()].filter(Boolean).join(' ');
+    lines.push('Пациент: ' + (_pn || '—'));
     lines.push('Дата анализа: ' + bt.date);
     lines.push('');
     lines.push('1. АНАМНЕЗ');

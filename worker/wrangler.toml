@@ -9,7 +9,7 @@ main = "src/index.js"
 compatibility_date = "2024-11-01"
 
 [triggers]
-crontab = ["*/15 * * * *"]
+crons = ["*/15 * * * *"]
 
 [vars]
 TICK_URL = "https://me-webapp.pages.dev/api/tick"
