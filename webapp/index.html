@@ -2097,7 +2097,7 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
     const imgs = await fileToImageParts(file);
     const raw = await claudeMessage(imgs.concat([
       { type:'text', text:'Это результаты анализа крови/биохимии (фото, скан, PDF или почерк, возможно несколько страниц). Распознай все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"короткое понятное название показателя","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"объяснение для человека без медицинского образования"}],"summary":"общий вывод по-человечески"}\n\nОЧЕНЬ ВАЖНО — язык:\n- Пиши так, будто объясняешь другу или бабушке, которые НИЧЕГО не знают про медицину.\n- ЗАПРЕЩЕНО использовать медицинские термины и аббревиатуры (эритроциты, гематокрит, MCHC, MCV, СОЭ, ретикулоциты и т.п.) без объяснения. Если без термина никак — сразу простыми словами в скобках, что это.\n- В "name" давай короткое бытовое название (например: "Красные клетки крови", "Белые клетки крови", "Свёртывание крови", "Гемоглобин (белок, переносящий кислород)"). Не пиши длинные лабораторные формулировки и латинские буквы.\n- В "plain": 1-2 коротких предложения. Что этот показатель показывает + что означает именно это значение. Если отклонение — спокойно объясни, из-за чего так бывает в обычной жизни (питьё, спорт, еда, недосып). НИКАКОЙ паники, НИКАКИХ страшных слов, НЕ пугай, НЕ ставь диагноз.\n- "summary": КОРОТКО, 1 предложение (максимум 2). Спокойно: в целом нормально или что показать врачу. Без терминов, без перечисления всех показателей.\nНе выдумывай показатели, которых нет на изображении. Только JSON.' }
-    ]), 4000, '');
+    ]), 7000, '');
     const parsed = parseJSONLoose(raw);
     if (!parsed.markers || !parsed.markers.length) throw new Error('no markers');
     const bt = addBloodTest(parsed);
@@ -2220,7 +2220,7 @@ if (scanFileInputEl) scanFileInputEl.addEventListener('change', async () => {
   if (listWrap) listWrap.style.display = 'none';
   try {
     var imgs = await fileToImageParts(file);
-    var raw = await claudeMessage(imgs.concat([{ type:'text', text:SCAN_PROMPT }]), 3500, '');
+    var raw = await claudeMessage(imgs.concat([{ type:'text', text:SCAN_PROMPT }]), 6000, '');
     var parsed = parseJSONLoose(raw);
     if (!parsed.plain_conclusion && !(parsed.findings && parsed.findings.length)) throw new Error('empty');
     var sc = addScan(parsed);
@@ -2797,7 +2797,7 @@ if (visitRxInput) {
     if (status) status.style.display = 'flex';
     try {
       const imgs = await fileToImageParts(file);
-      const raw = await claudeMessage(imgs.concat([{ type:'text', text:RX_PROMPT }]), 4500, '');
+      const raw = await claudeMessage(imgs.concat([{ type:'text', text:RX_PROMPT }]), 7000, '');
       const parsed = parseJSONLoose(raw);
       const meds = pickMeds(parsed);
       if (meds.length) {
@@ -2835,7 +2835,7 @@ document.getElementById('qNextBtn').addEventListener('click', async () => {
   document.getElementById('qNextBtn').style.display = 'none';
   try {
     const answersText = visitQuestions.map(q => `${q.q} → ${pendingVisit[q.key] || '—'}`).join('\n');
-    const raw = await claudeMessage(`Структурируй ответы пациента после приёма врача в JSON без markdown, на русском:\n{"doctorType":"тип врача (например: дерматолог, травматолог)","notes":["краткое резюме того, что сказал врач"],"medication":"препараты и частота или null","labs":"какие анализы сдать или null","followUp":"когда прийти снова, словами, или null","followUpDays":число дней до следующего визита или null (через 2 месяца = 60, через неделю = 7)}\nОтветы:\n${answersText}`, 500, '');
+    const raw = await claudeMessage(`Структурируй ответы пациента после приёма врача в JSON без markdown, на русском:\n{"doctorType":"тип врача (например: дерматолог, травматолог)","notes":["краткое резюме того, что сказал врач"],"medication":"препараты и частота или null","labs":"какие анализы сдать или null","followUp":"когда прийти снова, словами, или null","followUpDays":число дней до следующего визита или null (через 2 месяца = 60, через неделю = 7)}\nОтветы:\n${answersText}`, 1800, '');
     const parsed = parseJSONLoose(raw);
     saveVisit(parsed);
   } catch (err) {
@@ -2965,7 +2965,7 @@ analyzeBtn.addEventListener('click', async () => {
   try {
     const raw = await claudeMessage(uploadedParts.concat([
       { type:'text', text:RX_PROMPT }
-    ]), 4500, '');
+    ]), 7000, '');
     const parsed = parseJSONLoose(raw);
     const meds = pickMeds(parsed);
     if (!meds.length) throw new Error('no meds');
@@ -3346,7 +3346,7 @@ async function fillMissingDurations(norm){
       'Верни СТРОГО JSON-массив, по одному объекту на препарат В ТОМ ЖЕ ПОРЯДКЕ:\n' +
       '[{"stage_days":[число дней на каждый этап; для указанных врачом — то же число],"why":"короткое пояснение простыми словами, до какого срока безопасно"}]\n' +
       'Только JSON.';
-    var raw = await claudeMessage(q, 900, '');
+    var raw = await claudeMessage(q, 2200, '');
     var arr = parseJSONLoose(raw);
     if (Array.isArray(arr)){
       norm.forEach(function(m, i){
@@ -3814,7 +3814,7 @@ async function sendChat(text){
       '\n\nВопрос пользователя: ' + (text || 'Посмотри прикреплённый документ/снимок и очень коротко скажи, что здесь важно.') +
       (wantsLong ? '' : '\n\nОтветь ОЧЕНЬ КРАТКО — 2-4 предложения.');
     var content = imgParts.length ? imgParts.concat([{ type:'text', text: promptText }]) : promptText;
-    var raw = await claudeMessage(content, wantsLong ? 1200 : 450);
+    var raw = await claudeMessage(content, wantsLong ? 2500 : 700);
     raw = String(raw).replace(/\*\*/g, '').replace(/^\s{0,3}#{1,6}\s*/gm, '').replace(/^\s*[-*•]\s+/gm, '— ').trim();
     loadingBubble.textContent = raw;
     fitAskPanel();

@@ -41,7 +41,8 @@ export async function onRequest(context) {
       const body = await request.json();
       if (url.searchParams.get("raw") === "1") return json(await orRaw(body.content, body.maxTokens, env, body.model, body.system, body.prov), 200, cors);
       if (url.searchParams.get("models") === "1") {
-        const r = await fetch("https://api.groq.com/openai/v1/models", { headers: { Authorization: `Bearer ${env.GROQ_KEY}` } });
+        const src = url.searchParams.get("p") === "gemini" ? "https://generativelanguage.googleapis.com/v1beta/models?key=" + env.GEMINI_KEY : "https://api.groq.com/openai/v1/models";
+        const r = await fetch(src, { headers: { Authorization: `Bearer ${env.GROQ_KEY}` } });
         return json(await r.json(), 200, cors);
       }
       return json(await llmRaw(body.content, body.maxTokens, env, body.model, body.system), 200, cors);
@@ -97,8 +98,9 @@ function buildChain(env, override) {
   if (override) return [{ prov: "openrouter", model: override }];
   const c = [];
   if (env.GEMINI_KEY) {
-    c.push({ prov: "gemini", model: "gemini-2.5-flash" });
-    c.push({ prov: "gemini", model: "gemini-2.0-flash" });
+    c.push({ prov: "gemini", model: env.GEMINI_MODEL || "gemini-3.1-flash-lite" }); // non-thinking, быстрый, хорошая OCR
+    c.push({ prov: "gemini", model: "gemini-3.5-flash-lite" });
+    c.push({ prov: "gemini", model: "gemini-3.6-flash" });
   }
   if (env.GROQ_KEY) {
     c.push({ prov: "groq", model: "qwen/qwen3.6-27b" });        // vision + text (reasoning)
@@ -153,6 +155,7 @@ async function provCall(prov, model, parts, maxTokens, env, system) {
   const body = { model, messages, max_tokens: maxTokens || 2000, temperature: 0.2 };
   let url, headers = { "Content-Type": "application/json" };
   if (prov === "groq") body.reasoning_effort = "none"; // qwen3 на Groq иначе тратит весь бюджет на <think>
+  if (prov === "gemini") body.reasoning_effort = "none";
   if (prov === "github") {
     url = GITHUB_URL;
     headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
