@@ -3802,7 +3802,8 @@ async function sendChat(text){
       '\n\nВопрос пользователя: ' + (text || 'Посмотри прикреплённый документ/снимок и очень коротко скажи, что здесь важно.') +
       (wantsLong ? '' : '\n\nОтветь ОЧЕНЬ КРАТКО — 2-4 предложения.');
     var content = imgParts.length ? imgParts.concat([{ type:'text', text: promptText }]) : promptText;
-    const raw = await claudeMessage(content, wantsLong ? 1200 : 450);
+    var raw = await claudeMessage(content, wantsLong ? 1200 : 450);
+    raw = String(raw).replace(/\*\*/g, '').replace(/^\s{0,3}#{1,6}\s*/gm, '').replace(/^\s*[-*•]\s+/gm, '— ').trim();
     loadingBubble.textContent = raw;
     fitAskPanel();
   } catch(err){ loadingBubble.textContent = 'Что-то пошло не так. Попробуйте снова.'; fitAskPanel(); }
