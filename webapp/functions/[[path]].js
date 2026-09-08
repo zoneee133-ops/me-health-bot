@@ -7,6 +7,7 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const GITHUB_URL = "https://models.github.ai/inference/chat/completions";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // универсальный медицинский промпт — применяется ко всем текстовым запросам,
 // если фронтенд не прислал свой system.
@@ -95,7 +96,12 @@ function buildChain(env, override) {
     c.push({ prov: "gemini", model: "gemini-2.5-flash" });
     c.push({ prov: "gemini", model: "gemini-2.0-flash" });
   }
-  if (env.GITHUB_TOKEN) {
+  if (env.GROQ_KEY) {
+    c.push({ prov: "groq", model: "meta-llama/llama-4-maverick-17b-128e-instruct" });
+    c.push({ prov: "groq", model: "meta-llama/llama-4-scout-17b-16e-instruct" });
+  }
+  // GitHub Models выключается GitHub'ом (retirement brownout) — включаем только если явно задан флаг
+  if (env.GITHUB_TOKEN && env.GITHUB_MODELS_ON) {
     c.push({ prov: "github", model: "openai/gpt-4o" });
     c.push({ prov: "github", model: "openai/gpt-4o-mini" });
   }
@@ -144,6 +150,9 @@ async function provCall(prov, model, parts, maxTokens, env, system) {
   } else if (prov === "gemini") {
     url = GEMINI_URL;
     headers.Authorization = `Bearer ${env.GEMINI_KEY}`;
+  } else if (prov === "groq") {
+    url = GROQ_URL;
+    headers.Authorization = `Bearer ${env.GROQ_KEY}`;
   } else {
     url = OPENROUTER_URL;
     headers.Authorization = `Bearer ${env.OPENROUTER_KEY}`;
