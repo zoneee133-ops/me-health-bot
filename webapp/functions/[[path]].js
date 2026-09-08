@@ -39,7 +39,11 @@ export async function onRequest(context) {
     if (url.pathname === "/api/llm" && request.method === "POST") return json(await apiLlm(request, env), 200, cors);
     if (url.pathname === "/api/llm-test" && request.method === "POST" && url.searchParams.get("secret") === env.SETUP_SECRET) {
       const body = await request.json();
-      if (url.searchParams.get("raw") === "1") return json(await orRaw(body.content, body.maxTokens, env, body.model, body.system), 200, cors);
+      if (url.searchParams.get("raw") === "1") return json(await orRaw(body.content, body.maxTokens, env, body.model, body.system, body.prov), 200, cors);
+      if (url.searchParams.get("models") === "1") {
+        const r = await fetch("https://api.groq.com/openai/v1/models", { headers: { Authorization: `Bearer ${env.GROQ_KEY}` } });
+        return json(await r.json(), 200, cors);
+      }
       return json(await llmRaw(body.content, body.maxTokens, env, body.model, body.system), 200, cors);
     }
     if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, context), 200, cors);
@@ -97,8 +101,9 @@ function buildChain(env, override) {
     c.push({ prov: "gemini", model: "gemini-2.0-flash" });
   }
   if (env.GROQ_KEY) {
-    c.push({ prov: "groq", model: "meta-llama/llama-4-maverick-17b-128e-instruct" });
-    c.push({ prov: "groq", model: "meta-llama/llama-4-scout-17b-16e-instruct" });
+    c.push({ prov: "groq", model: "qwen/qwen3.6-27b" });        // vision + text (reasoning)
+    c.push({ prov: "groq", model: "qwen/qwen3.8-27b" });
+    c.push({ prov: "groq", model: "openai/gpt-oss-120b" });     // text-only fallback (for chat)
   }
   // GitHub Models выключается GitHub'ом (retirement brownout) — включаем только если явно задан флаг
   if (env.GITHUB_TOKEN && env.GITHUB_MODELS_ON) {
@@ -128,13 +133,16 @@ function toParts(content) {
   return parts;
 }
 
+function stripThink(s) {
+  return String(s).replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/^[\s\S]*?<\/think>/i, "").trim();
+}
 function extractText(d) {
   const m = d?.choices?.[0]?.message;
   if (!m) return "";
   let t = m.content;
   if (Array.isArray(t)) t = t.map((p) => p.text || "").join("");
-  if (typeof t === "string" && t.trim()) return t;
-  if (typeof m.reasoning === "string" && m.reasoning.trim()) return m.reasoning; // reasoning-модели
+  if (typeof t === "string" && stripThink(t)) return stripThink(t);
+  if (typeof m.reasoning === "string" && m.reasoning.trim()) return stripThink(m.reasoning);
   return "";
 }
 
@@ -144,6 +152,7 @@ async function provCall(prov, model, parts, maxTokens, env, system) {
   messages.push({ role: "user", content: parts });
   const body = { model, messages, max_tokens: maxTokens || 2000, temperature: 0.2 };
   let url, headers = { "Content-Type": "application/json" };
+  if (prov === "groq") body.reasoning_effort = "none"; // qwen3 на Groq иначе тратит весь бюджет на <think>
   if (prov === "github") {
     url = GITHUB_URL;
     headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
@@ -163,10 +172,12 @@ async function provCall(prov, model, parts, maxTokens, env, system) {
   return { ok: r.ok, status: r.status, data: await r.json() };
 }
 
-async function orRaw(content, maxTokens, env, modelOverride, system) {
+async function orRaw(content, maxTokens, env, modelOverride, system, provOverride) {
   const parts = toParts(content);
   const chain = buildChain(env, modelOverride);
-  const a = chain[0] || { prov: "openrouter", model: "google/gemini-2.5-flash" };
+  const a = provOverride
+    ? { prov: provOverride, model: modelOverride }
+    : (chain[0] || { prov: "openrouter", model: "google/gemini-2.5-flash" });
   const res = await provCall(a.prov, a.model, parts, maxTokens, env, system);
   return { provider: a.prov, model: a.model, status: res.status, data: res.data };
 }
