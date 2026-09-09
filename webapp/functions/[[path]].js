@@ -54,6 +54,8 @@ export async function onRequest(context) {
     if (url.pathname === "/api/reminder" && request.method === "POST") return json(await apiReminderSave(request, env), 200, cors);
     if (url.pathname === "/api/tick") return json(await apiTick(url, env, context), 200, cors);
     if (url.pathname === "/api/erase" && request.method === "POST") return json(await apiErase(request, env), 200, cors);
+    if (url.pathname === "/api/inbox" && request.method === "GET") return json(await apiInbox(request, url, env), 200, cors);
+    if (url.pathname === "/api/inbox" && request.method === "POST") return json(await apiInboxConsume(request, env), 200, cors);
     if (url.pathname === "/api/health" && request.method === "POST") {
       // health-check LLM-цепочки. Только с админ-ключом в заголовке, без переопределения провайдера/модели/system.
       if (!env.SETUP_SECRET || !timingSafeEqual(request.headers.get("X-Setup-Key") || "", env.SETUP_SECRET)) throw httpErr(401, "unauthorized");
@@ -399,6 +401,7 @@ async function eraseUser(env, uid) {
     env.DB.prepare("DELETE FROM meds WHERE user_id=?").bind(uid),
     env.DB.prepare("DELETE FROM reminders WHERE user_id=?").bind(uid),
     env.DB.prepare("DELETE FROM rl WHERE user_id=?").bind(String(uid)),
+    env.DB.prepare("DELETE FROM inbox WHERE user_id=?").bind(String(uid)),
   ]).catch(() => {});
 }
 
@@ -461,11 +464,15 @@ async function handleWebhook(request, env) {
   }
   let u; try { u = await request.json(); } catch { return new Response("ok"); }
   const m = u && u.message;
-  if (m && typeof m.text === "string" && m.chat && m.from) {
+  if (m && m.chat && m.from) {
     const chatId = m.chat.id;
     const fromId = m.from.id;
     // приватный чат: команды действуют только на самого отправителя
     const isSelf = m.chat.type === "private" && chatId === fromId;
+    if (typeof m.text !== "string") {
+      if (isSelf && (m.photo || m.document)) { try { await handleInboxFile(env, m, fromId); } catch (e) {} }
+      return new Response("ok");
+    }
     const text = m.text.trim();
     if (text.startsWith("/start")) {
       await sendMessage(env, chatId,
@@ -473,7 +480,7 @@ async function handleWebhook(request, env) {
         { inline_keyboard: [[{ text: "🩺 Открыть Me", web_app: { url: env.WEBAPP_URL } }]] });
     } else if (text.startsWith("/help")) {
       await sendMessage(env, chatId,
-        "Me переводит медицинские данные на понятный язык:\n\n• фото анализа → разбор каждого показателя\n• фото рецепта → календарь приёма лекарств\n• визит к врачу → структурированная запись\n• отчёт для врача в один тап\n• чат по вашим данным\n\n/privacy — политика конфиденциальности\n/restart — стереть все данные");
+        "Me переводит медицинские данные на понятный язык:\n\n• фото анализа → разбор каждого показателя\n• фото рецепта → календарь приёма лекарств\n• визит к врачу → структурированная запись\n• отчёт для врача в один тап\n• чат по вашим данным\n\nПришлите фото или PDF документа прямо в этот чат (или перешлите из почты) — я приму его и разберу, когда откроете приложение.\n\n/privacy — политика конфиденциальности\n/restart — стереть все данные");
     } else if (text === "/privacy") {
       await sendMessage(env, chatId, `Политика конфиденциальности и условия: ${env.WEBAPP_URL}/privacy.html`);
     } else if (text === "/restart" && isSelf) {
@@ -485,6 +492,83 @@ async function handleWebhook(request, env) {
     }
   }
   return new Response("ok");
+}
+
+/* ---------------- inbox: файлы, присланные боту (в т.ч. пересланные из почты) ---------------- */
+
+const INBOX_MAX_BYTES = 3 * 1024 * 1024;
+const INBOX_MAX_PENDING = 15;
+
+function b64FromBuf(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 8192) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  }
+  return btoa(s);
+}
+
+async function handleInboxFile(env, m, uid) {
+  let fileId, name, mime, size;
+  if (m.document) {
+    fileId = m.document.file_id;
+    name = m.document.file_name || "документ";
+    mime = (m.document.mime_type || "").toLowerCase();
+    size = m.document.file_size || 0;
+  } else {
+    const ph = m.photo[m.photo.length - 1];
+    fileId = ph.file_id; name = "фото"; mime = "image/jpeg"; size = ph.file_size || 0;
+  }
+  const okImg = /^image\/(jpeg|png|webp|heic|heif)$/.test(mime);
+  if (!okImg && mime !== "application/pdf") {
+    await sendMessage(env, uid, "Пришлите фото или PDF документа (анализ, снимок, рецепт).");
+    return;
+  }
+  if (size && size > INBOX_MAX_BYTES) {
+    await sendMessage(env, uid, "Файл слишком большой. Откройте Me и загрузите его внутри приложения.");
+    return;
+  }
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS inbox (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at INTEGER NOT NULL, mime TEXT, name TEXT, b64 TEXT NOT NULL, status TEXT DEFAULT 'pending')"
+  ).run().catch(() => {});
+  const cnt = await env.DB.prepare("SELECT COUNT(*) AS c FROM inbox WHERE user_id=? AND status='pending'")
+    .bind(String(uid)).first().catch(() => ({ c: 0 }));
+  if ((cnt && cnt.c || 0) >= INBOX_MAX_PENDING) {
+    await sendMessage(env, uid, "Много файлов в очереди. Откройте Me — разберу уже присланные.");
+    return;
+  }
+  const info = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getFile?file_id=${encodeURIComponent(fileId)}`).then((r) => r.json());
+  if (!info || !info.ok) { await sendMessage(env, uid, "Не получилось скачать файл. Попробуйте ещё раз."); return; }
+  const buf = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${info.result.file_path}`).then((r) => r.arrayBuffer());
+  if (buf.byteLength > INBOX_MAX_BYTES) { await sendMessage(env, uid, "Файл слишком большой. Загрузите его внутри приложения."); return; }
+  const outMime = mime === "application/pdf" ? "application/pdf" : (/heic|heif/.test(mime) ? "image/heic" : mime);
+  await env.DB.prepare("INSERT INTO inbox (id, user_id, created_at, mime, name, b64, status) VALUES (?,?,?,?,?,?, 'pending')")
+    .bind(crypto.randomUUID(), String(uid), Date.now(), outMime, String(name).slice(0, 120), b64FromBuf(buf)).run();
+  await sendMessage(env, uid, "📎 Получил. Откройте Me — распознаю и объясню простыми словами.",
+    { inline_keyboard: [[{ text: "🩺 Открыть Me", web_app: { url: env.WEBAPP_URL + "?startapp=inbox" } }]] });
+}
+
+async function apiInbox(request, url, env) {
+  const user = await authUser(request, env, null);
+  const id = String(url.searchParams.get("id") || "");
+  try {
+    if (id) {
+      const row = await env.DB.prepare("SELECT id, mime, name, b64 FROM inbox WHERE user_id=? AND id=? AND status='pending'")
+        .bind(String(user.id), id).first();
+      return row ? { item: row } : { item: null };
+    }
+    const rows = await env.DB.prepare("SELECT id, mime, name FROM inbox WHERE user_id=? AND status='pending' ORDER BY created_at ASC LIMIT 15")
+      .bind(String(user.id)).all();
+    return { items: rows.results || [] };
+  } catch { return id ? { item: null } : { items: [] }; }
+}
+
+async function apiInboxConsume(request, env) {
+  const body = await readJson(request);
+  const user = await authUser(request, env, body);
+  const id = String(body.id || "");
+  await env.DB.prepare("DELETE FROM inbox WHERE user_id=? AND id=?").bind(String(user.id), id).run().catch(() => {});
+  return { ok: true };
 }
 
 async function sendMessage(env, chatId, text, replyMarkup) {

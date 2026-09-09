@@ -217,7 +217,7 @@ if (todayUploadBloodEl) todayUploadBloodEl.addEventListener('click', function() 
 });
 var todayOpenHealthEl = document.getElementById('todayOpenHealth');
 if (todayOpenHealthEl) todayOpenHealthEl.addEventListener('click', function() {
-  if (typeof showToast === 'function') showToast('Автосбор из почты скоро появится');
+  if (typeof processInbox === 'function') processInbox({ notify: true });
 });
 
 var askBackBtnEl = document.getElementById('askBackBtn');
@@ -647,6 +647,8 @@ function renderBloodTestsList(){
   wrap.querySelectorAll('.row').forEach(el => el.addEventListener('click', () => openBloodResult(el.dataset.id)));
 }
 
+var BLOOD_PROMPT = 'Это результаты анализа крови/биохимии (фото, скан, PDF или почерк, возможно несколько страниц). Распознай все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"короткое понятное название показателя","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"объяснение для человека без медицинского образования"}],"summary":"общий вывод по-человечески"}\n\nОЧЕНЬ ВАЖНО — язык:\n- Пиши так, будто объясняешь другу или бабушке, которые НИЧЕГО не знают про медицину.\n- ЗАПРЕЩЕНО использовать медицинские термины и аббревиатуры (эритроциты, гематокрит, MCHC, MCV, СОЭ, ретикулоциты и т.п.) без объяснения. Если без термина никак — сразу простыми словами в скобках, что это.\n- В "name" давай короткое бытовое название (например: "Красные клетки крови", "Белые клетки крови", "Свёртывание крови", "Гемоглобин (белок, переносящий кислород)"). Не пиши длинные лабораторные формулировки и латинские буквы.\n- В "plain": 1-2 коротких предложения. Что этот показатель показывает + что означает именно это значение. Если отклонение — спокойно объясни, из-за чего так бывает в обычной жизни (питьё, спорт, еда, недосып). НИКАКОЙ паники, НИКАКИХ страшных слов, НЕ пугай, НЕ ставь диагноз.\n- "summary": КОРОТКО, 1 предложение (максимум 2). Спокойно: в целом нормально или что показать врачу. Без терминов, без перечисления всех показателей.\nНе выдумывай показатели, которых нет на изображении. Только JSON.';
+
 document.getElementById('bloodFileInput').addEventListener('change', async () => {
   const input = document.getElementById('bloodFileInput');
   const file = input.files[0];
@@ -660,7 +662,7 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
   try {
     const imgs = await fileToImageParts(file);
     const raw = await claudeMessage(imgs.concat([
-      { type:'text', text:'Это результаты анализа крови/биохимии (фото, скан, PDF или почерк, возможно несколько страниц). Распознай все показатели со всех страниц. Верни СТРОГО JSON без markdown, на русском:\n{"date":"дата как ДД МЕС ГГГГ или СЕГОДНЯ","lab":"лаборатория или пусто","markers":[{"name":"короткое понятное название показателя","value":"значение с единицами","ref":"норма с бланка или пусто","flag":"high"|"low"|"normal","plain":"объяснение для человека без медицинского образования"}],"summary":"общий вывод по-человечески"}\n\nОЧЕНЬ ВАЖНО — язык:\n- Пиши так, будто объясняешь другу или бабушке, которые НИЧЕГО не знают про медицину.\n- ЗАПРЕЩЕНО использовать медицинские термины и аббревиатуры (эритроциты, гематокрит, MCHC, MCV, СОЭ, ретикулоциты и т.п.) без объяснения. Если без термина никак — сразу простыми словами в скобках, что это.\n- В "name" давай короткое бытовое название (например: "Красные клетки крови", "Белые клетки крови", "Свёртывание крови", "Гемоглобин (белок, переносящий кислород)"). Не пиши длинные лабораторные формулировки и латинские буквы.\n- В "plain": 1-2 коротких предложения. Что этот показатель показывает + что означает именно это значение. Если отклонение — спокойно объясни, из-за чего так бывает в обычной жизни (питьё, спорт, еда, недосып). НИКАКОЙ паники, НИКАКИХ страшных слов, НЕ пугай, НЕ ставь диагноз.\n- "summary": КОРОТКО, 1 предложение (максимум 2). Спокойно: в целом нормально или что показать врачу. Без терминов, без перечисления всех показателей.\nНе выдумывай показатели, которых нет на изображении. Только JSON.' }
+      { type:'text', text:BLOOD_PROMPT }
     ]), 7000, '');
     const parsed = parseJSONLoose(raw);
     if (!parsed.markers || !parsed.markers.length) throw new Error('no markers');
@@ -2505,6 +2507,60 @@ function showToast(msg){
   measure(); place(0);
 })();
 
+/* ================= inbox: файлы, присланные боту / пересланные из почты ================= */
+async function inboxParts(it){
+  var bin = atob(it.b64), u8 = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  var f = new File([u8], it.name || 'file', { type: it.mime || 'image/jpeg' });
+  return fileToImageParts(f);   // reuse PDF-рендер + HEIC/downscale
+}
+
+async function classifyInboxDoc(parts){
+  try {
+    var r = await claudeMessage(parts.concat([{ type:'text', text:'Что это за медицинский документ? Ответь ОДНИМ словом: blood (анализ крови/мочи/биохимия), scan (заключение МРТ/КТ/УЗИ/рентген/ЭКГ), rx (рецепт, назначение лекарств), other.' }]), 16, '');
+    var w = String(r || '').toLowerCase().match(/blood|scan|rx|other/);
+    return w ? w[0] : 'other';
+  } catch(e){ return 'other'; }
+}
+
+var inboxRunning = false;
+async function processInbox(opts){
+  if (inboxRunning) return;
+  inboxRunning = true;
+  try {
+    var list;
+    try { list = (await apiFetch('/api/inbox')).items || []; } catch(e){ return; }
+    if (!list.length){ if (opts && opts.notify) showToast('Новых файлов нет'); return; }
+    showToast('Разбираю файлы из чата…');
+    for (var k = 0; k < list.length; k++){
+      var meta = list[k], got;
+      try { got = (await apiFetch('/api/inbox?id=' + encodeURIComponent(meta.id))).item; } catch(e){ got = null; }
+      if (!got){ continue; }
+      try {
+        var parts = await inboxParts(got);
+        var kind = await classifyInboxDoc(parts);
+        if (kind === 'blood'){
+          var p = parseJSONLoose(await claudeMessage(parts.concat([{ type:'text', text:BLOOD_PROMPT }]), 7000, ''));
+          if (p.markers && p.markers.length){ var bt = addBloodTest(p); if (window.__meSave) window.__meSave(p, 'upload'); goTo('health'); openBloodResult(bt.id); showToast('Анализ из чата добавлен'); }
+          else throw new Error('no markers');
+        } else if (kind === 'scan'){
+          var s = parseJSONLoose(await claudeMessage(parts.concat([{ type:'text', text:SCAN_PROMPT }]), 6000, ''));
+          if (s.plain_conclusion || (s.findings && s.findings.length)){ var sc = addScan(s); if (window.__meSave) window.__meSave(s, 'scan'); goTo('health'); openScanResult(sc.id); showToast('Снимок из чата добавлен'); }
+          else throw new Error('empty scan');
+        } else if (kind === 'rx'){
+          var rx = parseJSONLoose(await claudeMessage(parts.concat([{ type:'text', text:RX_PROMPT }]), 7000, ''));
+          var meds = pickMeds(rx);
+          if (meds.length){ goTo('meds'); confirmRxMeds(meds, rx.raw_text || ''); showToast('Рецепт из чата — проверьте и подтвердите'); }
+          else throw new Error('no meds');
+        } else {
+          showToast('Файл не похож на анализ, снимок или рецепт');
+        }
+      } catch(e){ console.warn('inbox item', e); showToast('Один файл не удалось разобрать'); }
+      try { await apiFetch('/api/inbox', { method:'POST', body:{ id: meta.id } }); } catch(e){}
+    }
+  } finally { inboxRunning = false; }
+}
+
 /* ================= Telegram Mini App integration ================= */
 (function(){
   var tg = window.Telegram && window.Telegram.WebApp;
@@ -2634,6 +2690,10 @@ function showToast(msg){
         });
         if (items.length && typeof ingestMeds === 'function') ingestMeds(items).catch(function(e){ console.warn('ingest meds', e); });
       })
-      .catch(function(e){ console.warn('load meds', e); });
+      .catch(function(e){ console.warn('load meds', e); })
+      .finally(function(){
+        // ponytail: 800мс задержка вместо цепочки промисов — ждём, пока state прогрузится
+        setTimeout(function(){ processInbox().catch(function(e){ console.warn('inbox', e); }); }, 800);
+      });
   }
 })();
