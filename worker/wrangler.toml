@@ -1,7 +1,5 @@
-# Cron-воркер: раз в 15 минут дёргает /api/tick на Pages, который рассылает
-# напоминания о приёме лекарств. Публичного роута нет (workers.dev в РФ заблокирован,
-# но cron работает внутри Cloudflare и это не мешает).
-#
+# Cron-воркер: раз в 15 минут дёргает /api/tick на Pages (рассылка напоминаний).
+# Публичного роута нет. Секрет:  wrangler secret put TICK_KEY   (или через дашборд воркера).
 # Деплой:  cd worker && wrangler deploy
 
 name = "me-cron"
@@ -13,4 +11,3 @@ crons = ["*/15 * * * *"]
 
 [vars]
 TICK_URL = "https://me-webapp.pages.dev/api/tick"
-TICK_KEY = "tk_9f3d1a7c42e8"

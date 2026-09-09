@@ -9,4 +9,9 @@ database_id = "b291ba5c-dcf8-47fb-a24e-21648c05f332"
 
 [vars]
 WEBAPP_URL = "https://me-webapp.pages.dev"
-TICK_KEY = "tk_9f3d1a7c42e8"
+
+# Секреты (Pages → Settings → Variables and secrets, тип Secret):
+#   BOT_TOKEN, OPENROUTER_KEY, GEMINI_KEY, GROQ_KEY
+#   SETUP_SECRET   — доступ к POST /setup (заголовок X-Setup-Key)
+#   WEBHOOK_SECRET — проверка заголовка X-Telegram-Bot-Api-Secret-Token на /webhook
+#   TICK_KEY       — общий с воркером me-cron, для GET /api/tick?key=
