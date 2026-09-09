@@ -54,6 +54,12 @@ export async function onRequest(context) {
     if (url.pathname === "/api/reminder" && request.method === "POST") return json(await apiReminderSave(request, env), 200, cors);
     if (url.pathname === "/api/tick") return json(await apiTick(url, env, context), 200, cors);
     if (url.pathname === "/api/erase" && request.method === "POST") return json(await apiErase(request, env), 200, cors);
+    if (url.pathname === "/api/health" && request.method === "POST") {
+      // health-check LLM-цепочки. Только с админ-ключом в заголовке, без переопределения провайдера/модели/system.
+      if (!env.SETUP_SECRET || !timingSafeEqual(request.headers.get("X-Setup-Key") || "", env.SETUP_SECRET)) throw httpErr(401, "unauthorized");
+      const b = await readJson(request);
+      return json(await llmRaw(b.content || "ответь одним словом: ок", Math.min(Number(b.maxTokens) || 400, 8000), env, b.system === "" ? "" : undefined), 200, cors);
+    }
     return json({ error: "not found" }, 404, cors);
   } catch (e) {
     const status = e && e.status ? e.status : 500;
