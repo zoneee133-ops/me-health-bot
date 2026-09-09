@@ -56,6 +56,8 @@ export async function onRequest(context) {
     if (url.pathname === "/api/erase" && request.method === "POST") return json(await apiErase(request, env), 200, cors);
     if (url.pathname === "/api/inbox" && request.method === "GET") return json(await apiInbox(request, url, env), 200, cors);
     if (url.pathname === "/api/inbox" && request.method === "POST") return json(await apiInboxConsume(request, env), 200, cors);
+    if (url.pathname === "/api/inbox-mail" && request.method === "POST") return json(await apiInboxMail(request, env), 200, cors);
+    if (url.pathname === "/api/mailkey" && request.method === "POST") return json(await apiMailkey(request, env), 200, cors);
     if (url.pathname === "/api/health" && request.method === "POST") {
       // health-check LLM-цепочки. Только с админ-ключом в заголовке, без переопределения провайдера/модели/system.
       if (!env.SETUP_SECRET || !timingSafeEqual(request.headers.get("X-Setup-Key") || "", env.SETUP_SECRET)) throw httpErr(401, "unauthorized");
@@ -402,6 +404,7 @@ async function eraseUser(env, uid) {
     env.DB.prepare("DELETE FROM reminders WHERE user_id=?").bind(uid),
     env.DB.prepare("DELETE FROM rl WHERE user_id=?").bind(String(uid)),
     env.DB.prepare("DELETE FROM inbox WHERE user_id=?").bind(String(uid)),
+    env.DB.prepare("DELETE FROM mailkey WHERE user_id=?").bind(String(uid)),
   ]).catch(() => {});
 }
 
@@ -483,6 +486,14 @@ async function handleWebhook(request, env) {
         "Me переводит медицинские данные на понятный язык:\n\n• фото анализа → разбор каждого показателя\n• фото рецепта → календарь приёма лекарств\n• визит к врачу → структурированная запись\n• отчёт для врача в один тап\n• чат по вашим данным\n\nПришлите фото или PDF документа прямо в этот чат (или перешлите из почты) — я приму его и разберу, когда откроете приложение.\n\n/privacy — политика конфиденциальности\n/restart — стереть все данные");
     } else if (text === "/privacy") {
       await sendMessage(env, chatId, `Политика конфиденциальности и условия: ${env.WEBAPP_URL}/privacy.html`);
+    } else if (text.startsWith("/mail") && isSelf) {
+      const token = await issueMailToken(env, fromId);
+      await sendMessage(env, chatId,
+        "📧 <b>Автосбор из почты</b>\n\nВаш ключ (не показывайте никому):\n\n<code>" + token + "</code>\n\n" +
+        "<b>Gmail:</b> откройте инструкцию ниже — вставите небольшой скрипт в script.google.com, он раз в час сам присылает новые вложения из писем.\n\n" +
+        "<b>Яндекс.Почта:</b> настройте пересылку писем с анализами на ваш Gmail — дальше сработает тот же скрипт.\n\n" +
+        "Ключ можно перевыпустить командой /mail (старый перестанет работать).",
+        { inline_keyboard: [[{ text: "📖 Инструкция", url: `${env.WEBAPP_URL}/mail.html` }]] });
     } else if (text === "/restart" && isSelf) {
       await sendMessage(env, chatId, "⚠️ <b>Сброс всех данных</b>\n\nБудут безвозвратно удалены все анализы, снимки, расписание лекарств и напоминания.\n\nПодтвердите: отправьте <code>/restart confirm</code>");
     } else if (text === "/restart confirm" && isSelf) {
@@ -571,6 +582,69 @@ async function apiInboxConsume(request, env) {
   return { ok: true };
 }
 
+/* mailkey: токен для Google Apps Script (автосбор из Gmail) */
+async function ensureMailkeyTable(env) {
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS mailkey (user_id TEXT PRIMARY KEY, token TEXT NOT NULL, created_at INTEGER NOT NULL)").run().catch(() => {});
+}
+function newMailToken() {
+  const a = crypto.getRandomValues(new Uint8Array(24));
+  return "mk_" + [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function issueMailToken(env, uid) {
+  await ensureMailkeyTable(env);
+  const token = newMailToken();
+  await env.DB.prepare("INSERT INTO mailkey (user_id, token, created_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET token=excluded.token, created_at=excluded.created_at")
+    .bind(String(uid), token, Date.now()).run();
+  return token;
+}
+
+async function apiMailkey(request, env) {
+  const body = await readJson(request);
+  const user = await authUser(request, env, body);
+  const token = await issueMailToken(env, user.id);
+  return { token, url: (env.WEBAPP_URL || "") + "/mail.html" };
+}
+
+async function apiInboxMail(request, env) {
+  const body = await readJson(request);
+  const token = String(body.key || body.token || "");
+  if (!/^mk_[a-f0-9]{20,}$/.test(token)) throw httpErr(401, "bad key");
+  await ensureMailkeyTable(env);
+  const row = await env.DB.prepare("SELECT user_id FROM mailkey WHERE token=?").bind(token).first().catch(() => null);
+  if (!row) throw httpErr(401, "unknown key");
+  const uid = String(row.user_id);
+
+  // подтверждение пересылки Яндекс/Gmail — просто отдаём код пользователю в бот
+  if (body.confirm) {
+    await sendMessage(env, uid, "🔑 Код подтверждения пересылки почты:\n\n<code>" + plain(body.confirm) + "</code>\n\nВставьте его в настройках почты.");
+    return { ok: true };
+  }
+
+  const mime = String(body.mime || "").toLowerCase();
+  const okImg = /^image\/(jpeg|png|webp|heic|heif)$/.test(mime);
+  if (!okImg && mime !== "application/pdf") throw httpErr(415, "bad mime");
+  const b64 = String(body.b64 || "");
+  if (!b64 || b64.length > 4.3 * 1024 * 1024) throw httpErr(413, "too large");
+
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS inbox (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at INTEGER NOT NULL, mime TEXT, name TEXT, b64 TEXT NOT NULL, status TEXT DEFAULT 'pending')"
+  ).run().catch(() => {});
+  const cnt = await env.DB.prepare("SELECT COUNT(*) AS c FROM inbox WHERE user_id=? AND status='pending'").bind(uid).first().catch(() => ({ c: 0 }));
+  if ((cnt && cnt.c || 0) >= INBOX_MAX_PENDING) throw httpErr(429, "queue full");
+
+  const outMime = mime === "application/pdf" ? "application/pdf" : (/heic|heif/.test(mime) ? "image/heic" : mime);
+  const id = crypto.randomUUID();
+  await env.DB.prepare("INSERT INTO inbox (id, user_id, created_at, mime, name, b64, status) VALUES (?,?,?,?,?,?, 'pending')")
+    .bind(id, uid, Date.now(), outMime, String(body.name || "письмо").slice(0, 120), b64).run();
+
+  // первый файл в пачке — пинганём пользователя
+  if ((cnt && cnt.c || 0) === 0) {
+    await sendMessage(env, uid, "📧 Пришёл документ из почты. Откройте Me — разберу.",
+      { inline_keyboard: [[{ text: "🩺 Открыть Me", web_app: { url: env.WEBAPP_URL + "?startapp=inbox" } }]] });
+  }
+  return { ok: true };
+}
+
 async function sendMessage(env, chatId, text, replyMarkup) {
   try {
     const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
@@ -599,6 +673,7 @@ async function handleSetup(request, env) {
   out.commands = await call("setMyCommands", { commands: [
     { command: "start", description: "Открыть приложение Me" },
     { command: "help", description: "Как это работает" },
+    { command: "mail", description: "Автосбор документов из почты" },
     { command: "privacy", description: "Конфиденциальность и условия" },
     { command: "restart", description: "Стереть все данные" },
   ] });
