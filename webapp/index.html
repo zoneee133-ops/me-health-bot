@@ -1601,10 +1601,38 @@ async function pdfToImageParts(file, maxPages){
   }
   return parts;
 }
+/* фото телефона -> JPEG, ужатый до maxDim. Решает HEIC (iPhone) и гигантские снимки. */
+async function imageToJpegPart(file, maxDim){
+  maxDim = maxDim || 1800;
+  var url = URL.createObjectURL(file);
+  try {
+    var img = await new Promise(function(res, rej){
+      var i = new Image();
+      i.onload = function(){ res(i); };
+      i.onerror = function(){ rej(new Error('image decode failed')); };
+      i.src = url;
+    });
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    if (!w || !h) throw new Error('empty image');
+    var s = Math.min(1, maxDim / Math.max(w, h));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * s));
+    c.height = Math.max(1, Math.round(h * s));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return { type:'image', source:{ type:'base64', media_type:'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] } };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 async function fileToImageParts(file){
   if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) return pdfToImageParts(file, 8);
-  var b64 = await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result).split(',')[1]); }; r.onerror=rej; r.readAsDataURL(file); });
-  return [{ type:'image', source:{ type:'base64', media_type: file.type || 'image/jpeg', data: b64 } }];
+  try {
+    return [ await imageToJpegPart(file) ];
+  } catch (e) {
+    // запасной путь: как есть (но HEIC модели не примут — лучше чем ничего)
+    var b64 = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(',')[1]); }; r.onerror = rej; r.readAsDataURL(file); });
+    return [{ type:'image', source:{ type:'base64', media_type: /heic|heif/i.test(file.type) ? 'image/jpeg' : (file.type || 'image/jpeg'), data: b64 } }];
+  }
 }
 
 function baseHealthContext(){

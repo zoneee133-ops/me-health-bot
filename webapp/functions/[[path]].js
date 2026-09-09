@@ -171,8 +171,18 @@ async function provCall(prov, model, parts, maxTokens, env, system) {
     headers["HTTP-Referer"] = env.WEBAPP_URL || "https://t.me";
     headers["X-Title"] = "Me Health";
   }
-  const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-  return { ok: r.ok, status: r.status, data: await r.json() };
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 45000); // не даём одному провайдеру подвесить весь запрос
+  try {
+    const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: ctl.signal });
+    let data;
+    try { data = await r.json(); } catch { data = { error: "non-json response" }; }
+    return { ok: r.ok, status: r.status, data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { error: String((e && e.message) || e) } };
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 async function orRaw(content, maxTokens, env, modelOverride, system, provOverride) {
