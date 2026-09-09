@@ -430,6 +430,24 @@ async function apiTick(url, env, ctx) {
     }
   } catch (e) {}
 
+  // разовое предложение настроить автосбор из почты — через 1–6 ч после первого контакта
+  try {
+    const nudge = await env.DB.prepare(
+      "SELECT user_id FROM users WHERE (mailboxes IS NULL OR mailboxes='') AND created_at BETWEEN ? AND ? LIMIT 100"
+    ).bind(now - 6 * 3600 * 1000, now - 60 * 60 * 1000).all();
+    for (const r of nudge.results || []) {
+      await env.DB.prepare("UPDATE users SET mailboxes='nudged' WHERE user_id=?").bind(r.user_id).run().catch(() => {});
+      ctx.waitUntil(sendMessage(env, r.user_id,
+        "📬 <b>Настроить автосбор из почты?</b>\n\nЕсли анализы приходят вам на e-mail — Me может забирать их сам, без пересылки вручную.\n\nКакая у вас почта?",
+        { inline_keyboard: [[
+          { text: "Gmail", callback_data: "mail:gmail" },
+          { text: "Яндекс", callback_data: "mail:yandex" },
+        ], [
+          { text: "Позже", callback_data: "mail:later" },
+        ]] }));
+    }
+  } catch (e) {}
+
   const { results } = await env.DB.prepare("SELECT * FROM meds WHERE active=1 LIMIT 2000").all();
   for (const m of results || []) {
     const tz = Number.isFinite(m.tz_offset) ? m.tz_offset : 180;
@@ -466,12 +484,23 @@ async function handleWebhook(request, env) {
     return new Response("forbidden", { status: 403 });
   }
   let u; try { u = await request.json(); } catch { return new Response("ok"); }
+
+  const cq = u && u.callback_query;
+  if (cq && cq.data && cq.from) {
+    try { await handleMailCallback(env, cq); } catch (e) {}
+    return new Response("ok");
+  }
+
   const m = u && u.message;
   if (m && m.chat && m.from) {
     const chatId = m.chat.id;
     const fromId = m.from.id;
     // приватный чат: команды действуют только на самого отправителя
     const isSelf = m.chat.type === "private" && chatId === fromId;
+    if (isSelf) {
+      await env.DB.prepare("INSERT INTO users (user_id, first_name, created_at) VALUES (?,?,?) ON CONFLICT(user_id) DO NOTHING")
+        .bind(fromId, String(m.from.first_name || "").slice(0, 64), Date.now()).run().catch(() => {});
+    }
     if (typeof m.text !== "string") {
       if (isSelf && (m.photo || m.document)) { try { await handleInboxFile(env, m, fromId); } catch (e) {} }
       return new Response("ok");
@@ -487,13 +516,13 @@ async function handleWebhook(request, env) {
     } else if (text === "/privacy") {
       await sendMessage(env, chatId, `Политика конфиденциальности и условия: ${env.WEBAPP_URL}/privacy.html`);
     } else if (text.startsWith("/mail") && isSelf) {
-      const token = await issueMailToken(env, fromId);
+      await env.DB.prepare("UPDATE users SET mailboxes='nudged' WHERE user_id=? AND (mailboxes IS NULL OR mailboxes='')").bind(fromId).run().catch(() => {});
       await sendMessage(env, chatId,
-        "📧 <b>Автосбор из почты</b>\n\nВаш ключ (не показывайте никому):\n\n<code>" + token + "</code>\n\n" +
-        "<b>Gmail:</b> откройте инструкцию ниже — вставите небольшой скрипт в script.google.com, он раз в час сам присылает новые вложения из писем.\n\n" +
-        "<b>Яндекс.Почта:</b> настройте пересылку писем с анализами на ваш Gmail — дальше сработает тот же скрипт.\n\n" +
-        "Ключ можно перевыпустить командой /mail (старый перестанет работать).",
-        { inline_keyboard: [[{ text: "📖 Инструкция", url: `${env.WEBAPP_URL}/mail.html` }]] });
+        "📬 <b>Автосбор из почты</b>\n\nКакая у вас почта? Пришлю короткую инструкцию.",
+        { inline_keyboard: [[
+          { text: "Gmail", callback_data: "mail:gmail" },
+          { text: "Яндекс", callback_data: "mail:yandex" },
+        ]] });
     } else if (text === "/restart" && isSelf) {
       await sendMessage(env, chatId, "⚠️ <b>Сброс всех данных</b>\n\nБудут безвозвратно удалены все анализы, снимки, расписание лекарств и напоминания.\n\nПодтвердите: отправьте <code>/restart confirm</code>");
     } else if (text === "/restart confirm" && isSelf) {
@@ -503,6 +532,47 @@ async function handleWebhook(request, env) {
     }
   }
   return new Response("ok");
+}
+
+async function setMailState(env, uid, s) {
+  await env.DB.prepare("INSERT INTO users (user_id, created_at, mailboxes) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET mailboxes=excluded.mailboxes")
+    .bind(uid, Date.now(), s).run().catch(() => {});
+}
+
+async function handleMailCallback(env, cq) {
+  const uid = cq.from.id;
+  const d = cq.data;
+  fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: cq.id }),
+  }).catch(() => {});
+  if (d !== "mail:gmail" && d !== "mail:yandex" && d !== "mail:later") return;
+
+  if (d === "mail:later") {
+    await setMailState(env, uid, "later");
+    await sendMessage(env, uid, "Хорошо. Когда решите настроить — команда /mail.");
+    return;
+  }
+  await setMailState(env, uid, d === "mail:gmail" ? "gmail" : "yandex");
+  const token = await issueMailToken(env, uid);
+  const btn = { inline_keyboard: [[{ text: "📖 Полная инструкция", url: `${env.WEBAPP_URL}/mail.html` }]] };
+
+  if (d === "mail:gmail") {
+    await sendMessage(env, uid,
+      "📧 <b>Gmail — 3 шага, ~3 минуты</b>\n\n" +
+      "1. Откройте <a href=\"https://script.google.com\">script.google.com</a> → «Новый проект».\n" +
+      "2. Со страницы-инструкции (кнопка ниже) скопируйте скрипт, вставьте его и в строке <code>KEY</code> впишите ваш ключ:\n\n<code>" + token + "</code>\n\n" +
+      "3. Сверху выберите функцию <b>setup</b> → «Выполнить» → разрешите доступ к Gmail.\n\n" +
+      "Всё. Раз в час новые анализы из писем будут приходить в Me.", btn);
+  } else {
+    await sendMessage(env, uid,
+      "📧 <b>Яндекс.Почта</b>\n\n" +
+      "1. Почта → <b>Настройки</b> → «Правила обработки почты» → «Создать правило».\n" +
+      "2. Условие: тема содержит «анализ» (или укажите адрес лаборатории).\n" +
+      "3. Действие: «Переслать по адресу» → ваш адрес Gmail, галочка «сохранять копию».\n" +
+      "4. Яндекс попросит код подтверждения — он придёт сюда, в этот чат.\n\n" +
+      "Дальше один раз ставится скрипт в Gmail (кнопка ниже). Ваш ключ:\n\n<code>" + token + "</code>", btn);
+  }
 }
 
 /* ---------------- inbox: файлы, присланные боту (в т.ч. пересланные из почты) ---------------- */
@@ -669,7 +739,7 @@ async function handleSetup(request, env) {
   const base = `https://api.telegram.org/bot${env.BOT_TOKEN}`;
   const call = (m, b) => fetch(`${base}/${m}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then((r) => r.json()).then((j) => !!j.ok).catch(() => false);
   const out = {};
-  out.webhook = await call("setWebhook", { url: `${site}/webhook`, secret_token: env.WEBHOOK_SECRET, allowed_updates: ["message"], drop_pending_updates: true });
+  out.webhook = await call("setWebhook", { url: `${site}/webhook`, secret_token: env.WEBHOOK_SECRET, allowed_updates: ["message", "callback_query"], drop_pending_updates: true });
   out.commands = await call("setMyCommands", { commands: [
     { command: "start", description: "Открыть приложение Me" },
     { command: "help", description: "Как это работает" },
