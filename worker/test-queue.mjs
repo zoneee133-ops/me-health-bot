@@ -149,4 +149,35 @@ assert.match(alerts[0].body.text, /429/);
 globalThis.fetch = okFetch;
 
 console.log("ok — пульт: авторизация, очередь, одобрение, защита от повторного тапа");
+// 14. reel c video_url -> сначала sendVideo, потом карточка с кнопками
+sent.length = 0;
+await call("/api/queue", {
+  method: "POST",
+  headers: { "X-Admin-Key": "secret", "Content-Type": "application/json" },
+  body: { kind: "reel", title: "Ролик 1 — мама", body: "на одобрение", payload: { video_url: "https://me-webapp.pages.dev/media/reel-01-mama.mp4" } },
+});
+const vid = sent.find((s) => /sendVideo/.test(s.url));
+assert.ok(vid, "sendVideo не вызван");
+assert.equal(vid.body.video, "https://me-webapp.pages.dev/media/reel-01-mama.mp4");
+assert.ok(sent.findIndex((s) => /sendVideo/.test(s.url)) < sent.findIndex((s) => /sendMessage/.test(s.url)), "видео должно идти до карточки");
+
+// 15. reel без video_url -> sendVideo НЕ вызывается
+sent.length = 0;
+await call("/api/queue", {
+  method: "POST",
+  headers: { "X-Admin-Key": "secret", "Content-Type": "application/json" },
+  body: { kind: "reel", title: "Только текст" },
+});
+assert.ok(!sent.some((s) => /sendVideo/.test(s.url)), "sendVideo не должен вызываться без video_url");
+
+// 16. чужой (не .mp4) URL в video_url отбрасывается
+sent.length = 0;
+await call("/api/queue", {
+  method: "POST",
+  headers: { "X-Admin-Key": "secret", "Content-Type": "application/json" },
+  body: { kind: "reel", title: "x", payload: { video_url: "https://evil.example/x.exe" } },
+});
+assert.ok(!sent.some((s) => /sendVideo/.test(s.url)), "не-mp4 URL должен отклоняться");
+
 console.log("ok — поддержка: вопрос дошёл, разметка обезврежена, ответ вернулся, лимит держит");
+console.log("ok — ролик: видео уходит до карточки, только .mp4, только при наличии video_url");

@@ -803,6 +803,12 @@ async function apiQueuePush(request, env) {
   await env.DB.prepare("INSERT INTO queue (id, kind, title, body, payload, status, created_at) VALUES (?,?,?,?,?, 'pending', ?)")
     .bind(row.id, row.kind, row.title, row.body, row.payload, Date.now()).run();
 
+  // ролик на одобрение: сначала само видео, потом карточка с кнопками
+  let vurl = null;
+  try { vurl = JSON.parse(row.payload).video_url; } catch (e) {}
+  if (kind === "reel" && typeof vurl === "string" && /^https:\/\/[^\s]+\.mp4(\?|$)/.test(vurl)) {
+    await sendVideo(env, env.ADMIN_ID, vurl, plain(row.title, 200));
+  }
   await sendMessage(env, env.ADMIN_ID, queueCard(row), queueButtons(row.id));
   return { ok: true, id: row.id };
 }
@@ -1008,6 +1014,17 @@ async function sendMessage(env, chatId, text, replyMarkup) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", link_preview_options: { is_disabled: true }, reply_markup: replyMarkup }),
+    });
+    return r.json();
+  } catch (e) { return null; }
+}
+
+async function sendVideo(env, chatId, videoUrl, caption) {
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendVideo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, video: videoUrl, caption: caption || "", supports_streaming: true }),
     });
     return r.json();
   } catch (e) { return null; }
