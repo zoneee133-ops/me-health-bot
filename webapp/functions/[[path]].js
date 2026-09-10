@@ -515,6 +515,10 @@ async function handleWebhook(request, env) {
       return new Response("ok");
     }
     const text = m.text.trim();
+    // ответ Роберта реплаем на карточку фидбека -> пересылаем автору вопроса
+    if (isSelf && isAdmin(env, fromId) && m.reply_to_message) {
+      try { if (await handleAdminReply(env, m)) return new Response("ok"); } catch (e) {}
+    }
     if (text.startsWith("/start")) {
       await sendMessage(env, chatId,
         "👋 <b>Me</b> — помощник по здоровью.\n\nСфотографируйте анализ или рецепт — я распознаю показатели и объясню каждый простыми словами, соберу график приёма лекарств и подготовлю отчёт для врача.\n\nНажмите кнопку ниже.",
@@ -542,6 +546,10 @@ async function handleWebhook(request, env) {
       try { await eraseUser(env, fromId); } catch (e) {}
       await sendMessage(env, chatId, "✅ Готово. Все данные стёрты.\n\nОткройте Me — начнём с чистого листа.",
         { inline_keyboard: [[{ text: "🩺 Открыть Me", web_app: { url: env.WEBAPP_URL + "?fresh=1" } }]] });
+    } else if (isSelf && !text.startsWith("/") && text.length >= 2 && !isAdmin(env, fromId)) {
+      try { await handleUserMessage(env, chatId, fromId, text); } catch (e) {}
+    } else if (isSelf && text.startsWith("/")) {
+      await sendMessage(env, chatId, "Не знаю такую команду. /help — что умеет Me.");
     }
   }
   return new Response("ok");
@@ -749,13 +757,13 @@ function isAdmin(env, uid) {
 
 async function ensureQueue(env) {
   await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS queue (id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT, body TEXT, payload TEXT, status TEXT DEFAULT 'pending', created_at INTEGER NOT NULL, decided_at INTEGER)"
+    "CREATE TABLE IF NOT EXISTS queue (id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT, body TEXT, payload TEXT, status TEXT DEFAULT 'pending', created_at INTEGER NOT NULL, decided_at INTEGER, user_id TEXT, msg_id INTEGER)"
   ).run().catch(() => {});
 }
 
 function queueCard(row) {
   const head = QUEUE_KINDS[row.kind] || "📌 Задача";
-  return `${head}\n\n<b>${plain(row.title)}</b>\n\n${plain(row.body)}`;
+  return `${head}\n\n<b>${plain(row.title)}</b>\n\n${plain(row.body, 2000)}`;
 }
 function queueButtons(id) {
   return { inline_keyboard: [[
@@ -843,6 +851,52 @@ async function showQueue(env, uid) {
   const items = rows.results || [];
   if (!items.length) { await sendMessage(env, uid, "Очередь пуста."); return; }
   for (const r of items) await sendMessage(env, uid, queueCard(r), queueButtons(r.id));
+}
+
+/* ---------------- поддержка: вопрос пользователя -> Роберту, ответ -> обратно ---------------- */
+
+const FEEDBACK_PER_DAY = 5;
+
+async function handleUserMessage(env, chatId, uid, text) {
+  if (!env.ADMIN_ID) { await sendMessage(env, chatId, "Не понял команду. /help — что умеет Me."); return; }
+  await ensureQueue(env);
+
+  const dayAgo = Date.now() - 86400000;
+  const cnt = await env.DB.prepare("SELECT COUNT(*) AS c FROM queue WHERE kind='feedback' AND user_id=? AND created_at>?")
+    .bind(String(uid), dayAgo).first().catch(() => ({ c: 0 }));
+  if ((cnt && cnt.c || 0) >= FEEDBACK_PER_DAY) {
+    await sendMessage(env, chatId, "Уже передал ваши сообщения. Ответим — напишем сюда.");
+    return;
+  }
+
+  const id = crypto.randomUUID();
+  const name = await env.DB.prepare("SELECT first_name FROM users WHERE user_id=?").bind(uid).first().catch(() => null);
+  const row = {
+    id, kind: "feedback",
+    title: `${(name && name.first_name) || "Пользователь"} · id ${uid}`,
+    body: text.slice(0, 2000),
+  };
+  // сообщение пользователя — это данные, не команда: уходит экранированным внутрь карточки
+  const sentCard = await sendMessage(env, env.ADMIN_ID, queueCard(row) + "\n\n<i>Ответьте на это сообщение — текст уйдёт человеку.</i>");
+  const msgId = sentCard && sentCard.ok && sentCard.result ? sentCard.result.message_id : null;
+
+  await env.DB.prepare("INSERT INTO queue (id, kind, title, body, payload, status, created_at, user_id, msg_id) VALUES (?,?,?,?,?, 'approved', ?,?,?)")
+    .bind(id, row.kind, row.title, row.body, "{}", Date.now(), String(uid), msgId).run().catch(() => {});
+
+  await sendMessage(env, chatId, "Передал вопрос — ответим здесь же.\n\nЕсли нужен разбор документа, пришлите фото или PDF.");
+}
+
+/* Роберт отвечает реплаем на карточку -> текст уходит автору вопроса */
+async function handleAdminReply(env, m) {
+  const src = m.reply_to_message;
+  if (!src) return false;
+  await ensureQueue(env);
+  const row = await env.DB.prepare("SELECT user_id FROM queue WHERE msg_id=? AND kind='feedback'")
+    .bind(src.message_id).first().catch(() => null);
+  if (!row || !row.user_id) return false;
+  await sendMessage(env, row.user_id, `💬 <b>Ответ от команды Me</b>\n\n${plain(m.text, 2000)}`);
+  await sendMessage(env, m.chat.id, "Отправлено.");
+  return true;
 }
 
 /* голосовая идея: расшифровка через Gemini, дальше сценарист берёт её из очереди */
@@ -936,8 +990,8 @@ async function sendMessage(env, chatId, text, replyMarkup) {
 }
 
 // экранируем данные из БД перед вставкой в HTML-сообщение Telegram
-function plain(s) {
-  return String(s == null ? "" : s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])).slice(0, 300);
+function plain(s, max = 300) {
+  return String(s == null ? "" : s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])).slice(0, max);
 }
 
 async function handleSetup(request, env) {

@@ -89,4 +89,45 @@ assert.match(sent.at(-1).body.text, /Уже решено/);
 // 8. GET очереди без ключа закрыт
 assert.equal((await call("/api/queue?status=pending")).status, 401);
 
+// 9. поддержка: текст пользователя -> карточка Роберту + подтверждение автору
+const say = (fromId, text, replyTo) => call("/webhook", {
+  method: "POST", headers: { "X-Telegram-Bot-Api-Secret-Token": "wh", "Content-Type": "application/json" },
+  body: { message: { chat: { id: fromId, type: "private" }, from: { id: fromId, first_name: "Аня" }, text, reply_to_message: replyTo } },
+});
+let nextMsgId = 100;
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => {
+  const r = await realFetch(url, init);
+  return { ok: true, json: async () => ({ ok: true, result: { message_id: nextMsgId++ } }) };
+};
+
+sent.length = 0;
+await say(555, "не распознаёт мой анализ, помогите");
+const toAdmin = sent.filter((s) => String(s.body.chat_id) === "777");
+assert.equal(toAdmin.length, 1);
+assert.match(toAdmin[0].body.text, /не распознаёт мой анализ/);
+assert.match(sent.at(-1).body.text, /Передал вопрос/);
+const fb = db.prepare("SELECT user_id, msg_id, status FROM queue WHERE kind='feedback'").get();
+assert.equal(fb.user_id, "555");
+assert.equal(fb.status, "approved");
+
+// 10. текст пользователя не исполняется как разметка — уходит экранированным
+sent.length = 0;
+await say(556, "<b>жирный</b> & <script>");
+assert.match(sent.find((s) => String(s.body.chat_id) === "777").body.text, /&lt;b&gt;жирный&lt;\/b&gt; &amp; &lt;script&gt;/);
+
+// 11. Роберт отвечает реплаем на карточку -> ответ уходит автору вопроса
+sent.length = 0;
+await say(777, "Проверьте качество фото — снимите при дневном свете.", { message_id: fb.msg_id });
+const back = sent.find((s) => String(s.body.chat_id) === "555");
+assert.ok(back, "ответ не дошёл до пользователя");
+assert.match(back.body.text, /дневном свете/);
+
+// 12. лимит: 6-е сообщение за сутки Роберту уже не летит
+sent.length = 0;
+for (let i = 0; i < 6; i++) await say(558, `вопрос ${i}`);
+assert.equal(sent.filter((s) => String(s.body.chat_id) === "777").length, 5);
+assert.match(sent.at(-1).body.text, /Уже передал/);
+
 console.log("ok — пульт: авторизация, очередь, одобрение, защита от повторного тапа");
+console.log("ok — поддержка: вопрос дошёл, разметка обезврежена, ответ вернулся, лимит держит");
