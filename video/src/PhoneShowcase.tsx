@@ -28,7 +28,7 @@ const Phone: React.FC<{children: React.ReactNode}> = ({children}) => {
   const float = Math.sin(f / 42) * 7;
   return (
     <div style={{
-      position: 'absolute', left: '50%', top: 348,
+      position: 'absolute', left: '50%', top: 520,
       transform: `translateX(-50%) translateY(${y + float}px) perspective(2400px) rotateY(-9deg) rotateX(3deg)`,
       opacity: s,
     }}>
@@ -135,7 +135,7 @@ const Caption: React.FC<{lines: string[]; dur: number}> = ({lines, dur}) => {
   const s = spring({frame: f - 8, fps, config: {damping: 200, mass: 1.3}});
   const o = Math.min(s, interpolate(f, [dur - 14, dur], [1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}));
   return (
-    <div style={{position: 'absolute', top: 118, left: 90, right: 90, textAlign: 'center', opacity: o, transform: `translateY(${interpolate(s, [0, 1], [16, 0])}px)`}}>
+    <div style={{position: 'absolute', top: 210, left: 90, right: 90, textAlign: 'center', opacity: o, transform: `translateY(${interpolate(s, [0, 1], [16, 0])}px)`}}>
       {lines.map((l, i) => (
         <div key={i} style={{fontFamily: T.font, fontWeight: 700, fontSize: 56, lineHeight: 1.18, letterSpacing: '-0.02em', color: T.ink}}>{l}</div>
       ))}

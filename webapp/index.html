@@ -186,81 +186,83 @@
     color:var(--ink-3);
     opacity:0.65;
   }
-  /* Карточка ИИ: белая, парящая тень, переливающийся кант бежит по краю (спектр в холодной гамме под тёплый фон приложения) */
+  /* Карточка ИИ: белая, парящая, по краю медленно скользит перламутровый блик. Монохром, премиально. */
   @property --ask-ang{ syntax:'<angle>'; inherits:false; initial-value:0deg; }
   .status-card.card-ask{
     --ask-ang:0deg;
-    background:#ffffff;
+    background:linear-gradient(180deg, #ffffff, #fdfdfc);
     border-radius:20px;
     overflow:visible;
     box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.9),
       0 1px 2px rgba(20,20,18,0.04),
-      0 10px 24px -10px rgba(20,20,18,0.10),
-      0 28px 50px -16px rgba(20,20,18,0.13);
-    animation:askFloat 6.5s ease-in-out infinite;
+      0 10px 24px -10px rgba(20,20,18,0.09),
+      0 26px 48px -18px rgba(20,20,18,0.12);
+    animation:askFloat 7s ease-in-out infinite;
   }
-  /* переливающийся кант — тонкая линия по контуру */
+  /* тонкий кант + бегущий по нему световой блик */
   .status-card.card-ask::before{
     content:"";
     position:absolute;
     inset:0;
     border-radius:inherit;
-    padding:1.4px;
+    padding:1.3px;
     pointer-events:none;
     z-index:1;
-    background:conic-gradient(from var(--ask-ang),
-      rgba(33,40,66,0.12) 0deg,
-      rgba(33,40,66,0.12) 188deg,
-      #5b8def 232deg,
-      #7c6ff0 262deg,
-      #b36be6 288deg,
-      #e58fbf 312deg,
-      #6fc7e6 336deg,
-      rgba(33,40,66,0.12) 356deg);
+    background:
+      conic-gradient(from var(--ask-ang),
+        rgba(120,140,175,0.10) 0deg,
+        rgba(255,255,255,1) 24deg,
+        rgba(150,170,205,0.8) 46deg,
+        rgba(120,140,175,0.12) 74deg,
+        rgba(33,40,66,0.14) 200deg,
+        rgba(120,140,175,0.10) 360deg);
     -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite:xor;
     mask-composite:exclude;
-    animation:askSpin 4.2s linear infinite;
+    animation:askSpin 8s linear infinite;
   }
-  /* мягкое цветное свечение того же участка канта */
+  /* мягкое свечение блика, чуть шире канта */
   .status-card.card-ask::after{
     content:"";
     position:absolute;
     inset:0;
     border-radius:inherit;
-    padding:1.4px;
+    padding:1.3px;
     pointer-events:none;
     z-index:0;
     background:conic-gradient(from var(--ask-ang),
-      transparent 196deg,
-      #5b8def 240deg,
-      #b36be6 286deg,
-      #6fc7e6 330deg,
-      transparent 356deg);
+      rgba(255,255,255,0) 0deg,
+      rgba(224,232,248,0.95) 28deg,
+      rgba(180,198,228,0.55) 52deg,
+      rgba(255,255,255,0) 88deg,
+      rgba(255,255,255,0) 360deg);
     -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite:xor;
     mask-composite:exclude;
     filter:blur(8px);
-    opacity:0.45;
-    animation:askSpin 4.2s linear infinite;
+    opacity:0.9;
+    animation:askSpin 8s linear infinite;
   }
   @keyframes askSpin{ to{ --ask-ang:360deg; } }
   @keyframes askFloat{
     0%,100%{
       transform:translateY(0);
       box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.9),
         0 1px 2px rgba(20,20,18,0.04),
-        0 10px 24px -10px rgba(20,20,18,0.10),
-        0 24px 42px -18px rgba(20,20,18,0.12);
+        0 10px 24px -10px rgba(20,20,18,0.09),
+        0 22px 40px -18px rgba(20,20,18,0.11);
     }
     50%{
       transform:translateY(-3px);
       box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.9),
         0 1px 2px rgba(20,20,18,0.04),
-        0 16px 32px -10px rgba(20,20,18,0.12),
-        0 36px 58px -16px rgba(20,20,18,0.16);
+        0 16px 32px -10px rgba(20,20,18,0.11),
+        0 34px 56px -16px rgba(20,20,18,0.15);
     }
   }
   @media (prefers-reduced-motion:reduce){
