@@ -1128,7 +1128,12 @@ async function apiChannelPost(request, env) {
 
   let method, payload;
   if (media && /\.mp4(\?|$)/i.test(media)) {
-    method = "sendVideo"; payload = { chat_id: chat, video: media, caption: text, parse_mode: "HTML", supports_streaming: true };
+    // видео: URL, при неудаче — multipart (через общий помощник, он и парс-мод учтёт)
+    const dv = await sendVideoTo(env, chat, media, text);
+    if (!dv || !dv.ok) throw httpErr(502, (dv && dv.description) || "video send failed");
+    const mid = dv.result && dv.result.message_id;
+    if (pin && mid) await tg("pinChatMessage", { chat_id: chat, message_id: mid, disable_notification: true });
+    return { ok: true, message_id: mid };
   } else if (media) {
     method = "sendPhoto"; payload = { chat_id: chat, photo: media, caption: text, parse_mode: "HTML" };
   } else {
@@ -1150,15 +1155,33 @@ async function apiChannelPost(request, env) {
   return { ok: true, message_id: msgId };
 }
 
-async function sendVideo(env, chatId, videoUrl, caption) {
+// низкоуровневый: URL → при неудаче multipart. Возвращает полный ответ Telegram.
+async function sendVideoTo(env, chatId, videoUrl, caption, parseMode) {
   try {
-    const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendVideo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, video: videoUrl, caption: caption || "", supports_streaming: true }),
+    const body = { chat_id: chatId, video: videoUrl, caption: caption || "", supports_streaming: true };
+    if (parseMode) body.parse_mode = parseMode;
+    const r1 = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendVideo`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
-    return r.json();
+    const d1 = await r1.json().catch(() => null);
+    if (d1 && d1.ok) return d1;
+  } catch (e) {}
+  try {
+    const f = await fetch(videoUrl);
+    if (!f.ok) return null;
+    const fd = new FormData();
+    fd.append("chat_id", String(chatId));
+    fd.append("caption", caption || "");
+    if (parseMode) fd.append("parse_mode", parseMode);
+    fd.append("supports_streaming", "true");
+    fd.append("video", new Blob([await f.arrayBuffer()], { type: "video/mp4" }), "reel.mp4");
+    const r2 = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendVideo`, { method: "POST", body: fd });
+    return r2.json().catch(() => null);
   } catch (e) { return null; }
+}
+
+async function sendVideo(env, chatId, videoUrl, caption) {
+  return sendVideoTo(env, chatId, videoUrl, caption);
 }
 
 // экранируем данные из БД перед вставкой в HTML-сообщение Telegram
