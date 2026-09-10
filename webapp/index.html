@@ -186,45 +186,87 @@
     color:var(--ink-3);
     opacity:0.65;
   }
-  /* Gemini-style breathing gradient rim on AI card */
+  /* Карточка ИИ: белая, парящая тень, переливающийся кант бежит по краю (спектр в холодной гамме под тёплый фон приложения) */
+  @property --ask-ang{ syntax:'<angle>'; inherits:false; initial-value:0deg; }
   .status-card.card-ask{
-    background:var(--surface);
-    isolation:isolate;
+    --ask-ang:0deg;
+    background:#ffffff;
+    border-radius:20px;
+    overflow:visible;
+    box-shadow:
+      0 1px 2px rgba(20,20,18,0.04),
+      0 10px 24px -10px rgba(20,20,18,0.10),
+      0 28px 50px -16px rgba(20,20,18,0.13);
+    animation:askFloat 6.5s ease-in-out infinite;
   }
-  .status-card.card-ask{ animation:askGlow 3.6s ease-in-out infinite; }
+  /* переливающийся кант — тонкая линия по контуру */
   .status-card.card-ask::before{
     content:"";
     position:absolute;
     inset:0;
     border-radius:inherit;
-    padding:2px;
-    background:linear-gradient(115deg,
-      #2e3a63 0%,
-      #4aa6c4 22%,
-      #8fd4e6 38%,
-      #b9a4e8 52%,
-      #4aa6c4 68%,
-      #2e3a63 85%,
-      #4aa6c4 100%);
-    background-size:280% 280%;
+    padding:1.4px;
+    pointer-events:none;
+    z-index:1;
+    background:conic-gradient(from var(--ask-ang),
+      rgba(33,40,66,0.12) 0deg,
+      rgba(33,40,66,0.12) 188deg,
+      #5b8def 232deg,
+      #7c6ff0 262deg,
+      #b36be6 288deg,
+      #e58fbf 312deg,
+      #6fc7e6 336deg,
+      rgba(33,40,66,0.12) 356deg);
     -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite:xor;
     mask-composite:exclude;
-    animation:aiBreath 3.6s linear infinite;
+    animation:askSpin 4.2s linear infinite;
+  }
+  /* мягкое цветное свечение того же участка канта */
+  .status-card.card-ask::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    padding:1.4px;
     pointer-events:none;
     z-index:0;
+    background:conic-gradient(from var(--ask-ang),
+      transparent 196deg,
+      #5b8def 240deg,
+      #b36be6 286deg,
+      #6fc7e6 330deg,
+      transparent 356deg);
+    -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    filter:blur(8px);
+    opacity:0.45;
+    animation:askSpin 4.2s linear infinite;
   }
-  @keyframes askGlow{
-    0%,100%{ box-shadow:var(--shadow-card), 0 0 0 0 rgba(74,166,196,0.0); }
-    50%{ box-shadow:var(--shadow-card), 0 0 22px -2px rgba(74,166,196,0.45); }
-  }
-  @keyframes aiBreath{
-    0%{ background-position:0% 50%; }
-    100%{ background-position:280% 50%; }
+  @keyframes askSpin{ to{ --ask-ang:360deg; } }
+  @keyframes askFloat{
+    0%,100%{
+      transform:translateY(0);
+      box-shadow:
+        0 1px 2px rgba(20,20,18,0.04),
+        0 10px 24px -10px rgba(20,20,18,0.10),
+        0 24px 42px -18px rgba(20,20,18,0.12);
+    }
+    50%{
+      transform:translateY(-3px);
+      box-shadow:
+        0 1px 2px rgba(20,20,18,0.04),
+        0 16px 32px -10px rgba(20,20,18,0.12),
+        0 36px 58px -16px rgba(20,20,18,0.16);
+    }
   }
   @media (prefers-reduced-motion:reduce){
-    .status-card.card-ask, .status-card.card-ask::before{ animation:none; }
+    .status-card.card-ask,
+    .status-card.card-ask::before,
+    .status-card.card-ask::after{ animation:none; }
   }
   .status-card.card-ask .sc-label,
   .status-card.card-ask .sc-main,

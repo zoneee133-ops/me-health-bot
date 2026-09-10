@@ -1,0 +1,29 @@
+/* image-first post layouts — builds on _kit.css (.post 1080x1350) */
+
+/* big number */
+.bn .name{font-size:36px;color:var(--ink2);margin-bottom:14px}
+.bn .val{font-size:230px;font-weight:700;letter-spacing:-.04em;line-height:.92;color:var(--warn)}
+.bn .val.ok{color:var(--accent)}
+.bn .val .u{font-size:52px;color:var(--ink3);font-weight:600;letter-spacing:0}
+.bn .ref{font-size:38px;color:var(--ink2);margin-top:30px}
+.bn .ref b{color:var(--ink);font-weight:600}
+.bn .verdict{font-size:54px;font-weight:700;color:var(--ink);margin-top:52px;letter-spacing:-.02em;line-height:1.15}
+
+/* before / after */
+.ba .lbl{font-size:24px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px}
+.ba .before{font-size:38px;color:var(--ink3);font-family:ui-monospace,Menlo,monospace;line-height:1.4;padding-bottom:40px}
+.ba .divline{height:1px;background:var(--ink3);opacity:.3;margin-bottom:40px}
+.ba .after{font-size:52px;color:var(--ink);font-weight:700;line-height:1.24;letter-spacing:-.02em}
+
+/* one-line myth */
+.myth .claim{font-size:78px;font-weight:700;color:var(--ink);line-height:1.16;letter-spacing:-.02em}
+.myth .claim .q{color:var(--ink3)}
+.myth .fix{font-size:40px;color:var(--accent);font-weight:600;margin-top:38px;line-height:1.35}
+
+/* quote / hook */
+.hook h1{font-size:100px;line-height:1.1}
+.hook h1.s{font-size:82px}
+.hook .sub{font-size:36px;color:var(--ink2);margin-top:36px}
+
+/* checklist reuses .post ul from _kit.css */
+.post h1.chk{font-size:60px;margin-bottom:8px}

@@ -56,3 +56,8 @@ mux ReelDecode      reel-a-rasshifrovka  19.0  a1:0.5 a2:6.6 a3:11.2
 mux ReelHandwriting reel-b-pocherk       19.0  b1:0.4 b2:5.7 b3:11.8
 mux ReelShowMom     reel-c-pokazhi-mame  20.6  c1:0.5 c2:6.4 c4:13.0
 mux ReelAboveNormal reel-d-vyshe-normy   16.0  d1:0.4 d2:5.2 d3:10.6
+
+mux ReelFerritin    reel-e-ferritin      24.4  e1:0.4 e2:6.3  e3:13.0 e4:20.3
+mux ReelReport      reel-f-report        25.8  f1:0.4 f2:7.3  f3:16.0 f4:21.0
+mux ReelMail        reel-g-mail          24.4  g1:0.4 g2:6.6  g3:13.0 g4:20.4
+mux ReelScan        reel-h-scan          27.1  h1:0.4 h2:7.0  h3:14.6 h4:21.7

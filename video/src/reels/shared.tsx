@@ -173,7 +173,7 @@ export const LabForm: React.FC<{
   lab: string;
   patient: string;
   date: string;
-  rows: {name: string; val: string; ref: string; flag?: boolean}[];
+  rows: {name: string; val: string; ref: string; flag?: boolean; low?: boolean}[];
   revealFlagAt?: number;
 }> = ({lab, patient, date, rows, revealFlagAt = 0}) => {
   const f = useCurrentFrame();
@@ -219,16 +219,18 @@ export const LabForm: React.FC<{
                 fontSize: 34,
                 fontWeight: 700,
                 fontVariantNumeric: 'tabular-nums',
-                color: r.flag ? T.bad : T.ink,
+                color: r.flag ? (r.low ? T.warn : T.bad) : T.ink,
                 background: r.flag
-                  ? `rgba(200,68,58,${0.06 + 0.1 * flagPulse})`
+                  ? r.low
+                    ? `rgba(169,128,60,${0.07 + 0.11 * flagPulse})`
+                    : `rgba(200,68,58,${0.06 + 0.1 * flagPulse})`
                   : 'transparent',
                 padding: '6px 16px',
                 borderRadius: 10,
               }}
             >
               {r.val}
-              {r.flag ? '  ↑' : ''}
+              {r.flag ? (r.low ? '  ↓' : '  ↑') : ''}
             </div>
           </div>
         ))}
