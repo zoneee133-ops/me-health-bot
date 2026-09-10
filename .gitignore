@@ -8,3 +8,4 @@ worker/.dev.vars
 content/**/*.png
 content/**/*.mp4
 content/**/list.txt
+models/
