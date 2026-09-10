@@ -25,12 +25,7 @@ mux(){
   local sil="out/_${comp}.mp4"
   npx remotion render "$comp" "$sil" --log=error
 
-  # 3) закадр — последовательно, split для дакинга
-  "$FF" -y "${inputs[@]}" -filter_complex \
-    "${filt}${labels}amix=inputs=${n}:normalize=0:dropout_transition=0,loudnorm=I=-14:TP=-1.5:LRA=11,apad=whole_dur=${total},asplit=2[voA][voB]" \
-    -map "[voA]" -t "$total" "out/vo/_${comp}_vo.wav" -loglevel error
-
-  # 4) микс: слышимая подушка + лёгкий дакинг под голос
+  # 3) микс: закадр (последовательно) + слышимая подушка, лёгкий дакинг
   local fo; fo=$(python3 -c "print(round(${total}-2.2,2))")
   "$FF" -y "${inputs[@]}" -stream_loop -1 -i assets/bed.wav -filter_complex "\
     ${filt}${labels}amix=inputs=${n}:normalize=0:dropout_transition=0,loudnorm=I=-14:TP=-1.5:LRA=11,apad=whole_dur=${total},asplit=2[voA][voB];\
@@ -50,7 +45,7 @@ mux(){
 mux ReelDecode      reel-a-rasshifrovka  a1 a2 a3
 mux ReelHandwriting reel-b-pocherk       b1 b2 b3
 mux ReelShowMom     reel-c-pokazhi-mame  c1 c2 c4
-mux ReelAboveNormal reel-d-vyshe-normy   d1 d2 d3
+#mux ReelAboveNormal reel-d-vyshe-normy   d1 d2 d3
 mux ReelFerritin    reel-e-ferritin      e1 e2 e3 e4
 mux ReelReport      reel-f-report        f1 f2 f3 f4
 mux ReelMail        reel-g-mail          g1 g2 g3 g4

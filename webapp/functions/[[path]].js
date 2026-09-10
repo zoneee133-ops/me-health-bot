@@ -537,6 +537,20 @@ async function handleWebhook(request, env) {
     if (isSelf && isAdmin(env, fromId) && m.reply_to_message) {
       try { if (await handleAdminReply(env, m)) return new Response("ok"); } catch (e) {}
     }
+    // Роберт написал причину к только что отклонённому ролику
+    if (isSelf && isAdmin(env, fromId) && !text.startsWith("/")) {
+      try {
+        await ensureQueue(env);
+        const pend = await env.DB.prepare(
+          "SELECT id FROM queue WHERE kind='reel' AND status='rejected' AND (reason IS NULL OR reason='') AND decided_at > ? ORDER BY decided_at DESC LIMIT 1"
+        ).bind(Date.now() - 3600000).first().catch(() => null);
+        if (pend && pend.id) {
+          await env.DB.prepare("UPDATE queue SET reason=? WHERE id=?").bind(text.slice(0, 1000), pend.id).run();
+          await sendMessage(env, chatId, "Понял. Поправлю и пришлю заново.");
+          return new Response("ok");
+        }
+      } catch (e) {}
+    }
     if (text.startsWith("/start")) {
       const channel = env.CHANNEL_LINK || "https://t.me/me_zdorovie";
       await sendMessage(env, chatId,
@@ -882,6 +896,12 @@ async function handleQueueCallback(env, cq) {
   const res = await env.DB.prepare("UPDATE queue SET status=?, decided_at=? WHERE id=? AND status='pending'")
     .bind(verb === "ok" ? "approved" : "rejected", Date.now(), id).run().catch(() => null);
   const changed = res && res.meta && res.meta.changes;
+
+  // отклонили — спрашиваем причину следующим сообщением
+  if (changed && verb === "no") {
+    await env.DB.prepare("ALTER TABLE queue ADD COLUMN reason TEXT").run().catch(() => {});
+    await sendMessage(env, cq.from.id, "✖️ Отклонено. Напиши одним сообщением, <b>что не так</b> — поправлю и пришлю заново.");
+  }
 
   const mark = !changed ? "\n\n<i>Уже решено раньше.</i>"
     : verb === "ok" ? "\n\n✅ <b>Одобрено</b>" : "\n\n✖️ <b>Отклонено</b>";
