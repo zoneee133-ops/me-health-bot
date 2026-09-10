@@ -1,5 +1,5 @@
 -- D1 "me" — полная схема (справочно; таблицы уже созданы в проде).
-CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, first_name TEXT, created_at INTEGER, mailboxes TEXT);
+CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, first_name TEXT, created_at INTEGER, mailboxes TEXT, last_seen INTEGER);
 
 CREATE TABLE IF NOT EXISTS analyses (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, created_at INTEGER NOT NULL, source TEXT, status TEXT, data TEXT);
 CREATE INDEX IF NOT EXISTS idx_analyses_user ON analyses (user_id, created_at DESC);

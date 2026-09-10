@@ -124,7 +124,14 @@ async function hmac(keyBytes, msgBytes) {
 }
 
 async function authUser(request, env, body) {
-  return verifyInitData(getInitData(request, body), env.BOT_TOKEN);
+  const user = await verifyInitData(getInitData(request, body), env.BOT_TOKEN);
+  // ponytail: один upsert по первичному ключу на каждый авторизованный вызов — при текущем масштабе ок
+  const now = Date.now();
+  await env.DB.prepare(
+    "INSERT INTO users (user_id, first_name, created_at, last_seen) VALUES (?,?,?,?) " +
+    "ON CONFLICT(user_id) DO UPDATE SET last_seen=excluded.last_seen, first_name=COALESCE(users.first_name, excluded.first_name)"
+  ).bind(user.id, String(user.first_name || "").slice(0, 64), now, now).run().catch(() => {});
+  return user;
 }
 
 /* ---------------- rate limit (D1) ---------------- */
@@ -515,8 +522,9 @@ async function handleWebhook(request, env) {
     // приватный чат: команды действуют только на самого отправителя
     const isSelf = m.chat.type === "private" && chatId === fromId;
     if (isSelf) {
-      await env.DB.prepare("INSERT INTO users (user_id, first_name, created_at) VALUES (?,?,?) ON CONFLICT(user_id) DO NOTHING")
-        .bind(fromId, String(m.from.first_name || "").slice(0, 64), Date.now()).run().catch(() => {});
+      const _now = Date.now();
+      await env.DB.prepare("INSERT INTO users (user_id, first_name, created_at, last_seen) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET last_seen=excluded.last_seen, first_name=COALESCE(users.first_name, excluded.first_name)")
+        .bind(fromId, String(m.from.first_name || "").slice(0, 64), _now, _now).run().catch(() => {});
     }
     if (typeof m.text !== "string") {
       // голосовая идея от Роберта — в очередь пульта, остальным голосовые не обрабатываем
@@ -550,6 +558,8 @@ async function handleWebhook(request, env) {
       await sendMessage(env, chatId, `Ваш Telegram ID: <code>${fromId}</code>`);
     } else if (text.startsWith("/queue") && isSelf && isAdmin(env, fromId)) {
       await showQueue(env, fromId);
+    } else if (text.startsWith("/stats") && isSelf && isAdmin(env, fromId)) {
+      await sendStats(env, chatId);
     } else if (text === "/restart" && isSelf) {
       await sendMessage(env, chatId, "⚠️ <b>Сброс всех данных</b>\n\nБудут безвозвратно удалены все анализы, снимки, расписание лекарств и напоминания.\n\nПодтвердите: отправьте <code>/restart confirm</code>");
     } else if (text === "/restart confirm" && isSelf) {
@@ -997,6 +1007,28 @@ async function transcribe(env, b64, mime) {
     const parts = d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts;
     return (parts || []).map((p) => p.text || "").join("").trim();
   } catch { return ""; }
+}
+
+/* /stats — только для админа, по запросу */
+async function sendStats(env, chatId) {
+  const now = Date.now();
+  const one = async (sql, ...b) => ((await env.DB.prepare(sql).bind(...b).first().catch(() => null)) || { c: 0 }).c;
+  const total = await one("SELECT COUNT(*) AS c FROM users");
+  const m5 = await one("SELECT COUNT(*) AS c FROM users WHERE last_seen>?", now - 5 * 60000);
+  const h1 = await one("SELECT COUNT(*) AS c FROM users WHERE last_seen>?", now - 3600000);
+  const d1 = await one("SELECT COUNT(*) AS c FROM users WHERE last_seen>?", now - 86400000);
+  const w1 = await one("SELECT COUNT(*) AS c FROM users WHERE last_seen>?", now - 7 * 86400000);
+  const newD = await one("SELECT COUNT(*) AS c FROM users WHERE created_at>?", now - 86400000);
+  const anD = await one("SELECT COUNT(*) AS c FROM analyses WHERE created_at>?", now - 86400000);
+  await sendMessage(env, chatId,
+    "📊 <b>Статистика Me</b>\n\n" +
+    `Всего пользователей: <b>${total}</b>\n` +
+    `Сейчас (≤5 мин): <b>${m5}</b>\n` +
+    `За час: <b>${h1}</b>\n` +
+    `За сутки: <b>${d1}</b>\n` +
+    `За неделю: <b>${w1}</b>\n\n` +
+    `Новых за сутки: <b>${newD}</b>\n` +
+    `Разборов за сутки: <b>${anD}</b>`);
 }
 
 /* недельная сводка по аудитории — понедельник, 10:00 МСК, один раз в неделю */
