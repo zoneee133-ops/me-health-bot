@@ -31,3 +31,19 @@ p{font-size:38px;line-height:1.45;color:var(--ink2);margin-top:34px}
 .post p{font-size:36px;line-height:1.45;color:var(--ink2);margin-top:32px}
 .post .foot{position:absolute;bottom:110px;left:120px;font-size:28px;color:var(--ink3)}
 .post .foot b{color:var(--accent)}
+
+/* --- карусель + сетка «читаем анализ» --- */
+.post .kick{font-size:30px;color:var(--ink2);letter-spacing:.02em;margin-bottom:18px}
+.post .pg{position:absolute;top:96px;right:120px;font-size:26px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.post h1.s{font-size:66px}
+.post h1.xs{font-size:56px}
+.post ul{margin-top:34px;list-style:none;display:flex;flex-direction:column;gap:22px}
+.post ul li{font-size:34px;line-height:1.4;color:var(--ink2);padding-left:40px;position:relative}
+.post ul li::before{content:"";position:absolute;left:0;top:16px;width:16px;height:3px;border-radius:2px;background:var(--accent)}
+.post .num{font-size:130px;font-weight:700;color:var(--accent);letter-spacing:-.03em;line-height:1;opacity:.14;position:absolute;top:250px;left:118px}
+.post .disc{position:absolute;bottom:104px;left:120px;right:120px;font-size:24px;line-height:1.4;color:var(--ink3)}
+.post .cta-mark{width:120px;height:120px;border-radius:34px;background:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:44px}
+.post .cta-mark svg{width:70px;height:70px}
+.post.center{align-items:flex-start}
+.post .foot{bottom:128px}
+.post .disc{bottom:58px}
