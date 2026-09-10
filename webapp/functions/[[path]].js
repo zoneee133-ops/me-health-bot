@@ -58,6 +58,7 @@ export async function onRequest(context) {
     if (url.pathname === "/api/inbox" && request.method === "POST") return json(await apiInboxConsume(request, env), 200, cors);
     if (url.pathname === "/api/inbox-mail" && request.method === "POST") return json(await apiInboxMail(request, env), 200, cors);
     if (url.pathname === "/api/mailkey" && request.method === "POST") return json(await apiMailkey(request, env), 200, cors);
+    if (url.pathname === "/api/report" && request.method === "POST") return json(await apiReport(request, env), 200, cors);
     if (url.pathname === "/api/queue" && request.method === "POST") return json(await apiQueuePush(request, env), 200, cors);
     if (url.pathname === "/api/queue" && request.method === "GET") return json(await apiQueueList(request, url, env), 200, cors);
     if (url.pathname === "/api/health" && request.method === "POST") {
@@ -602,6 +603,29 @@ async function handleMailCallback(env, cq) {
       "4. Яндекс попросит код подтверждения — он придёт сюда, в этот чат.\n\n" +
       "Дальше один раз ставится скрипт в Gmail (кнопка ниже). Ваш ключ:\n\n<code>" + token + "</code>", btn);
   }
+}
+
+/* ---------------- отчёт о сбое распознавания с клиента -> Роберту ---------------- */
+
+const REPORT_KIND = {
+  blood: "анализ крови",
+  scan: "снимок (МРТ/КТ/УЗИ)",
+  rx: "рецепт",
+  visit: "приём врача",
+  inbox: "файл из почты/чата",
+  image: "фото/скан (не открылось)",
+};
+
+async function apiReport(request, env) {
+  const body = await readJson(request);
+  const user = await authUser(request, env, body);
+  const k = REPORT_KIND[body.kind] || "документ";
+  const detail =
+    `Пользователь ${user.id}${user.first_name ? " (" + user.first_name + ")" : ""}\n` +
+    String(body.detail || "без деталей").slice(0, 400);
+  // alertAdmin дедуплицирует по теме на 1 час — на один тип сбоя не больше одного пинга в час
+  await alertAdmin(env, "Не распозналось: " + k, detail);
+  return { ok: true };
 }
 
 /* ---------------- inbox: файлы, присланные боту (в т.ч. пересланные из почты) ---------------- */

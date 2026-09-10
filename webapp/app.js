@@ -45,6 +45,13 @@ async function claudeMessage(content, maxTokens, system){
   var data = await apiFetch('/api/llm', { method:'POST', body:{ content: content, maxTokens: maxTokens || 700, system: system } });
   return (data.text || '').trim();
 }
+/* сообщить владельцу о сбое распознавания (fire-and-forget) */
+function reportFail(kind, detail){
+  try {
+    apiFetch('/api/report', { method:'POST', body:{ kind: kind, detail: String(detail && detail.message || detail || '').slice(0, 400) } }).catch(function(){});
+  } catch(e){}
+}
+
 /* экранирование для вставки строк ИИ/данных в innerHTML */
 function esc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -673,6 +680,7 @@ document.getElementById('bloodFileInput').addEventListener('change', async () =>
     openBloodResult(bt.id);
     if (window.__meSave) window.__meSave(parsed, 'upload');
   } catch (err) {
+    reportFail('blood', err);
     box.innerHTML = '<div class="error-box">Не получилось распознать. Сфотографируйте бланк крупнее, при хорошем свете, без бликов — и попробуйте ещё раз.</div>';
     setTimeout(() => { box.style.display = 'none'; if (listWrap) listWrap.style.display = 'block'; }, 3500);
   }
@@ -796,6 +804,7 @@ if (scanFileInputEl) scanFileInputEl.addEventListener('change', async () => {
     openScanResult(sc.id);
     if (window.__meSave) window.__meSave(parsed, 'scan');
   } catch (err) {
+    reportFail('scan', err);
     box.innerHTML = '<div class="error-box">Не получилось разобрать. Загрузите текст заключения (описание врача) крупнее и чётче.</div>';
     setTimeout(function(){ box.style.display = 'none'; if (listWrap) listWrap.style.display = 'block'; }, 3500);
   }
@@ -1377,6 +1386,7 @@ if (visitRxInput) {
         showToast('Не удалось прочитать рецепт');
       }
     } catch(e) {
+      reportFail('visit', e);
       showToast('Не получилось распознать — введите текстом');
     } finally {
       if (status) status.style.display = 'none';
@@ -1510,6 +1520,7 @@ async function handleMedFile(file){
     }
     analyzeBtn.style.display = 'block';
   } catch(e){
+    reportFail('image', e);
     analyzeError.style.display = 'block';
     analyzeError.textContent = 'Не получилось открыть файл. Попробуйте фото.';
   } finally {
@@ -1538,6 +1549,7 @@ analyzeBtn.addEventListener('click', async () => {
     uploadPreviewWrap.style.display = 'none';
     confirmRxMeds(meds, parsed.raw_text || '');
   } catch(err){
+    reportFail('rx', err);
     analyzeError.style.display = 'block';
     analyzeError.textContent = 'Не получилось распознать автоматически. Попробуйте ввести вручную.';
     analyzeBtn.style.display = 'block';
@@ -2557,7 +2569,7 @@ async function processInbox(opts){
           showToast('Файл не похож на анализ, снимок или рецепт');
         }
         done = true;
-      } catch(e){ console.warn('inbox item', e); showToast('Один файл не удалось разобрать'); }
+      } catch(e){ console.warn('inbox item', e); reportFail('inbox', e); showToast('Один файл не удалось разобрать'); }
       // не удаляем файл сразу при первом неуспехе — даём второй шанс при следующем открытии
       var tries = {}; try { tries = JSON.parse(localStorage.getItem('me_inbox_tries') || '{}'); } catch(e){}
       tries[meta.id] = (tries[meta.id] || 0) + 1;
