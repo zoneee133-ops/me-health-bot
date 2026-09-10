@@ -9,3 +9,6 @@ content/**/*.png
 content/**/*.mp4
 content/**/list.txt
 models/
+video/node_modules/
+video/out/
+video/.remotion/
