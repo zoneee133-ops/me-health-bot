@@ -30,7 +30,7 @@ const SlowPush: React.FC<{children: React.ReactNode; from: number; to: number; d
 }) => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const p = spring({frame: f, fps, durationInFrames: dur, config: {damping: 200}});
+  const p = spring({frame: f, fps, durationInFrames: dur, config: {damping: 200, mass: 2}});
   const s = interpolate(p, [0, 1], [from, to]);
   return (
     <AbsoluteFill style={{transform: `scale(${s})`, transformOrigin: '50% 46%'}}>{children}</AbsoluteFill>
@@ -44,23 +44,24 @@ export const MePromo: React.FC = () => {
 
       {/* 1. Хук 0–90 */}
       <Sequence from={0} durationInFrames={96}>
-        <Fade in_={12} out={18} dur={96}>
-          <SlowPush from={1.15} to={1.0} dur={96}>
+        <Fade in_={20} out={22} dur={96}>
+          <SlowPush from={1.10} to={1.0} dur={96}>
             <DocScatter resolveAt={40} />
           </SlowPush>
           <TextOverlay
             lines={['Медицинские анализы —', 'это сложно?']}
             startAt={6}
-            endAt={90}
-            size={66}
+            endAt={92}
+            align="top"
+            size={62}
           />
         </Fade>
       </Sequence>
 
       {/* 2A. Рецепт → календарь 90–210 */}
       <Sequence from={90} durationInFrames={120}>
-        <Fade in_={16} out={16} dur={120}>
-          <SlowPush from={1.06} to={1.0} dur={120}>
+        <Fade in_={22} out={22} dur={120}>
+          <SlowPush from={1.04} to={1.0} dur={120}>
             <AppCalendar />
           </SlowPush>
           <TextOverlay
@@ -75,7 +76,7 @@ export const MePromo: React.FC = () => {
 
       {/* 2B. Аватар, плечо разгорается 210–300 */}
       <Sequence from={210} durationInFrames={90}>
-        <Fade in_={16} out={16} dur={90}>
+        <Fade in_={22} out={22} dur={90}>
           <HumanAvatar glowAt={26} />
           <TextOverlay
             lines={['Показывает, где именно', 'что-то не так']}
@@ -89,7 +90,7 @@ export const MePromo: React.FC = () => {
 
       {/* 3. Подключение мамы 300–390 */}
       <Sequence from={300} durationInFrames={90}>
-        <Fade in_={14} out={16} dur={90}>
+        <Fade in_={22} out={22} dur={90}>
           <AppFamily />
           <TextOverlay
             lines={['Подключаете маму —', 'ей всё видно крупно и просто']}
