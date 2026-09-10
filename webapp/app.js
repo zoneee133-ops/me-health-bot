@@ -555,7 +555,7 @@ if (eraseAllBtn) eraseAllBtn.addEventListener('click', function(){
   if (yes) yes.addEventListener('click', async function(){
     yes.disabled = true; yes.textContent = 'Удаляю…';
     try { if (window.__meErase) await window.__meErase(); } catch(e){}
-    try { ['me_ob_done','me_showInjury','me_pd_consent'].forEach(function(k){ localStorage.removeItem(k); }); } catch(e){}
+    try { ['me_ob_done','me_showInjury','me_pd_consent','me_inbox_tries'].forEach(function(k){ localStorage.removeItem(k); }); } catch(e){}
     state.bloodTests = []; state.scans = []; state.meds = []; state.visits = [];
     closeSheet();
     if (typeof showToast === 'function') showToast('Все данные удалены');
@@ -2536,6 +2536,7 @@ async function processInbox(opts){
       var meta = list[k], got;
       try { got = (await apiFetch('/api/inbox?id=' + encodeURIComponent(meta.id))).item; } catch(e){ got = null; }
       if (!got){ continue; }
+      var done = false;
       try {
         var parts = await inboxParts(got);
         var kind = await classifyInboxDoc(parts);
@@ -2555,8 +2556,16 @@ async function processInbox(opts){
         } else {
           showToast('Файл не похож на анализ, снимок или рецепт');
         }
+        done = true;
       } catch(e){ console.warn('inbox item', e); showToast('Один файл не удалось разобрать'); }
-      try { await apiFetch('/api/inbox', { method:'POST', body:{ id: meta.id } }); } catch(e){}
+      // не удаляем файл сразу при первом неуспехе — даём второй шанс при следующем открытии
+      var tries = {}; try { tries = JSON.parse(localStorage.getItem('me_inbox_tries') || '{}'); } catch(e){}
+      tries[meta.id] = (tries[meta.id] || 0) + 1;
+      if (done || tries[meta.id] >= 2){
+        try { await apiFetch('/api/inbox', { method:'POST', body:{ id: meta.id } }); } catch(e){}
+        delete tries[meta.id];
+      }
+      try { localStorage.setItem('me_inbox_tries', JSON.stringify(tries)); } catch(e){}
     }
   } finally { inboxRunning = false; }
 }
@@ -2692,8 +2701,12 @@ async function processInbox(opts){
       })
       .catch(function(e){ console.warn('load meds', e); })
       .finally(function(){
-        // ponytail: 800мс задержка вместо цепочки промисов — ждём, пока state прогрузится
-        setTimeout(function(){ processInbox().catch(function(e){ console.warn('inbox', e); }); }, 800);
+        // ponytail: 800мс задержка вместо цепочки промисов — ждём, пока state прогрузится.
+        // не дёргаем во время онбординга (модалка согласия перекрыла бы его).
+        var obDone = false; try { obDone = !!localStorage.getItem('me_ob_done'); } catch(e){}
+        if (obDone || startParam() === 'inbox') {
+          setTimeout(function(){ processInbox().catch(function(e){ console.warn('inbox', e); }); }, 800);
+        }
       });
   }
 })();
