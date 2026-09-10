@@ -45,7 +45,7 @@ export const AppFamily: React.FC = () => {
 
   // фаза 1 (0–44): телефон дочери, «Добавить близкого» → подключено
   // фаза 2 (44–90): уезжает влево, въезжает крупный экран мамы
-  const handoff = spring({frame: f - 46, fps, durationInFrames: 22, config: {damping: 200}});
+  const handoff = spring({frame: f - 74, fps, durationInFrames: 26, config: {damping: 200}});
   const daughterX = interpolate(handoff, [0, 1], [0, -560]);
   const daughterO = interpolate(handoff, [0, 1], [1, 0]);
   const momX = interpolate(handoff, [0, 1], [640, 0]);
@@ -54,7 +54,7 @@ export const AppFamily: React.FC = () => {
   const connect = spring({frame: f - 12, fps, config: {damping: 160, mass: 1.2}});
   const rowIn = spring({frame: f - 5, fps, config: {damping: 200}});
 
-  const momEnter = spring({frame: f - 54, fps, config: {damping: 200, mass: 1}});
+  const momEnter = spring({frame: f - 84, fps, config: {damping: 200, mass: 1}});
 
   return (
     <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>

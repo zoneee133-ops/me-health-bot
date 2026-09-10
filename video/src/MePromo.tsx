@@ -42,68 +42,68 @@ export const MePromo: React.FC = () => {
     <AbsoluteFill style={{fontFamily: T.font, background: T.bg}}>
       <Background />
 
-      {/* 1. Хук 0–90 */}
-      <Sequence from={0} durationInFrames={96}>
-        <Fade in_={20} out={22} dur={96}>
-          <SlowPush from={1.10} to={1.0} dur={96}>
-            <DocScatter resolveAt={40} />
+      {/* 1. Хук 0–140 */}
+      <Sequence from={0} durationInFrames={140}>
+        <Fade in_={22} out={24} dur={140}>
+          <SlowPush from={1.10} to={1.0} dur={140}>
+            <DocScatter resolveAt={54} />
           </SlowPush>
           <TextOverlay
-            lines={['Медицинские анализы —', 'это сложно?']}
-            startAt={6}
-            endAt={92}
+            lines={['Непонятный анализ —', 'это тревожно']}
+            startAt={8}
+            endAt={136}
             align="top"
             size={62}
           />
         </Fade>
       </Sequence>
 
-      {/* 2A. Рецепт → календарь 90–210 */}
-      <Sequence from={90} durationInFrames={120}>
-        <Fade in_={22} out={22} dur={120}>
-          <SlowPush from={1.04} to={1.0} dur={120}>
+      {/* 2A. Рецепт → расписание 140–300 */}
+      <Sequence from={140} durationInFrames={160}>
+        <Fade in_={24} out={24} dur={160}>
+          <SlowPush from={1.04} to={1.0} dur={160}>
             <AppCalendar />
           </SlowPush>
           <TextOverlay
             lines={['Почерк из рецепта —', 'в понятное расписание']}
-            startAt={10}
-            endAt={116}
+            startAt={12}
+            endAt={156}
             align="bottom"
             size={54}
           />
         </Fade>
       </Sequence>
 
-      {/* 2B. Аватар, плечо разгорается 210–300 */}
-      <Sequence from={210} durationInFrames={90}>
-        <Fade in_={22} out={22} dur={90}>
-          <HumanAvatar glowAt={26} />
+      {/* 2B. Аватар 300–430 */}
+      <Sequence from={300} durationInFrames={130}>
+        <Fade in_={24} out={24} dur={130}>
+          <HumanAvatar glowAt={30} />
           <TextOverlay
-            lines={['Показывает, где именно', 'что-то не так']}
-            startAt={8}
-            endAt={86}
+            lines={['Показывает простым языком,', 'где что-то не так']}
+            startAt={10}
+            endAt={126}
             align="bottom"
-            size={54}
+            size={52}
           />
         </Fade>
       </Sequence>
 
-      {/* 3. Подключение мамы 300–390 */}
-      <Sequence from={300} durationInFrames={90}>
-        <Fade in_={22} out={22} dur={90}>
+      {/* 3. Подключение мамы 430–570 */}
+      <Sequence from={430} durationInFrames={140}>
+        <Fade in_={24} out={24} dur={140}>
           <AppFamily />
           <TextOverlay
-            lines={['Подключаете маму —', 'ей всё видно крупно и просто']}
-            startAt={6}
-            endAt={86}
+            lines={['Здоровье родителей —', 'под спокойным контролем']}
+            startAt={8}
+            endAt={136}
             align="bottom"
             size={50}
           />
         </Fade>
       </Sequence>
 
-      {/* 4. CTA 390–450 */}
-      <Sequence from={390} durationInFrames={60}>
+      {/* 4. CTA 570–690 */}
+      <Sequence from={570} durationInFrames={120}>
         <CTA />
       </Sequence>
     </AbsoluteFill>
@@ -114,7 +114,7 @@ const CTA: React.FC = () => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   const s = spring({frame: f, fps, config: {damping: 200, mass: 1}});
-  const o = interpolate(f, [0, 14, 52, 60], [0, 1, 1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const o = interpolate(f, [0, 18, 104, 120], [0, 1, 1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   return (
     <AbsoluteFill
       style={{alignItems: 'center', justifyContent: 'center', opacity: o}}
