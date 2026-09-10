@@ -1,5 +1,7 @@
 import {AbsoluteFill, interpolate, Sequence, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {T} from './theme';
+import {Copy, ru} from './copy';
+import {CopyProvider, useCopy} from './CopyContext';
 import {Background} from './Background';
 import {TextOverlay} from './TextOverlay';
 import {AppAnalysis, AppCalendar} from './AppMockup';
@@ -37,8 +39,9 @@ const SlowPush: React.FC<{children: React.ReactNode; from: number; to: number; d
   );
 };
 
-export const MePromo: React.FC = () => {
+export const MePromo: React.FC<{copy?: Copy}> = ({copy = ru}) => {
   return (
+    <CopyProvider value={copy}>
     <AbsoluteFill style={{fontFamily: T.font, background: T.bg}}>
       <Background />
 
@@ -49,7 +52,7 @@ export const MePromo: React.FC = () => {
             <DocScatter resolveAt={54} />
           </SlowPush>
           <TextOverlay
-            lines={['Непонятный анализ —', 'это тревожно']}
+            lines={copy.hook}
             startAt={8}
             endAt={136}
             align="top"
@@ -65,7 +68,7 @@ export const MePromo: React.FC = () => {
             <AppCalendar />
           </SlowPush>
           <TextOverlay
-            lines={['Почерк из рецепта —', 'в понятное расписание']}
+            lines={copy.calendarCap}
             startAt={12}
             endAt={156}
             align="bottom"
@@ -79,7 +82,7 @@ export const MePromo: React.FC = () => {
         <Fade in_={24} out={24} dur={130}>
           <HumanAvatar glowAt={30} />
           <TextOverlay
-            lines={['Показывает простым языком,', 'где что-то не так']}
+            lines={copy.avatarCap}
             startAt={10}
             endAt={126}
             align="bottom"
@@ -93,7 +96,7 @@ export const MePromo: React.FC = () => {
         <Fade in_={24} out={24} dur={140}>
           <AppFamily />
           <TextOverlay
-            lines={['Здоровье родителей —', 'под спокойным контролем']}
+            lines={copy.familyCap}
             startAt={8}
             endAt={136}
             align="bottom"
@@ -107,10 +110,13 @@ export const MePromo: React.FC = () => {
         <CTA />
       </Sequence>
     </AbsoluteFill>
+    </CopyProvider>
   );
 };
 
+
 const CTA: React.FC = () => {
+  const sub = useCopy().ctaSub;
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   const s = spring({frame: f, fps, config: {damping: 200, mass: 1}});
@@ -147,7 +153,7 @@ const CTA: React.FC = () => {
         </div>
         <div style={{fontSize: 96, fontWeight: 700, color: T.ink, letterSpacing: '-0.03em'}}>Me</div>
         <div style={{fontSize: 40, color: T.ink2, marginTop: 16, letterSpacing: '-0.01em'}}>
-          Пойми своё здоровье
+          {sub}
         </div>
       </div>
     </AbsoluteFill>

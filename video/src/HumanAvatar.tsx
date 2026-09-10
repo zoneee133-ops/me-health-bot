@@ -1,9 +1,11 @@
 import {interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {T} from './theme';
+import {useCopy} from './CopyContext';
 
 // Артикулированный анатомический силуэт: кости — линиями, суставы — точками.
 // Правое плечо плавно разгорается: так «Me» показывает проблемную зону.
 export const HumanAvatar: React.FC<{glowAt: number}> = ({glowAt}) => {
+  const label = useCopy().avatarLabel;
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
 
@@ -153,7 +155,7 @@ export const HumanAvatar: React.FC<{glowAt: number}> = ({glowAt}) => {
           borderRadius: 999,
         }}
       >
-        Правое плечо · требует внимания
+        {label}
       </div>
     </div>
   );

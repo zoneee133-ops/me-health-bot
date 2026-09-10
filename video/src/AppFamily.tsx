@@ -1,5 +1,6 @@
 import {interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {T} from './theme';
+import {useCopy} from './CopyContext';
 
 const Frame: React.FC<{children: React.ReactNode; style?: React.CSSProperties; small?: boolean}> = ({
   children,
@@ -40,6 +41,7 @@ const Frame: React.FC<{children: React.ReactNode; style?: React.CSSProperties; s
 
 // Сцена: дочь подключает маму, затем — крупный простой экран мамы.
 export const AppFamily: React.FC = () => {
+  const c = useCopy().family;
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
 
@@ -67,9 +69,7 @@ export const AppFamily: React.FC = () => {
         }}
       >
         <Frame>
-          <div style={{fontFamily: T.font, fontSize: 30, fontWeight: 600, color: T.ink, marginBottom: 20}}>
-            Близкие
-          </div>
+          <div style={{fontFamily: T.font, fontSize: 30, fontWeight: 600, color: T.ink, marginBottom: 20}}>{c.people}</div>
           <div
             style={{
               display: 'flex',
@@ -97,10 +97,8 @@ export const AppFamily: React.FC = () => {
               💚
             </div>
             <div style={{flex: 1}}>
-              <div style={{fontFamily: T.font, fontSize: 30, fontWeight: 600, color: T.ink}}>Мама</div>
-              <div style={{fontFamily: T.font, fontSize: 23, color: T.accent, opacity: connect}}>
-                подключена
-              </div>
+              <div style={{fontFamily: T.font, fontSize: 30, fontWeight: 600, color: T.ink}}>{c.mom}</div>
+              <div style={{fontFamily: T.font, fontSize: 23, color: T.accent, opacity: connect}}>{c.connected}</div>
             </div>
             <div
               style={{
@@ -129,7 +127,7 @@ export const AppFamily: React.FC = () => {
               color: T.ink3,
             }}
           >
-            + Добавить близкого
+            {c.addRelative}
           </div>
         </Frame>
       </div>
@@ -143,9 +141,7 @@ export const AppFamily: React.FC = () => {
         }}
       >
         <Frame small>
-          <div style={{fontFamily: T.font, fontSize: 34, color: T.ink2, marginBottom: 24}}>
-            Сегодня
-          </div>
+          <div style={{fontFamily: T.font, fontSize: 34, color: T.ink2, marginBottom: 24}}>{c.today}</div>
           <div
             style={{
               background: T.accentSoft,
@@ -155,10 +151,9 @@ export const AppFamily: React.FC = () => {
             }}
           >
             <div style={{fontFamily: T.font, fontSize: 46, fontWeight: 700, color: T.ink}}>
-              Всё в норме
-            </div>
+              {c.allNormal}</div>
             <div style={{fontFamily: T.font, fontSize: 30, color: T.ink2, marginTop: 10}}>
-              последний анализ — 12 сентября
+              {c.lastTest}
             </div>
           </div>
           <div
@@ -177,7 +172,7 @@ export const AppFamily: React.FC = () => {
                 20:00
               </div>
               <div style={{fontFamily: T.font, fontSize: 28, color: T.ink2, marginTop: 6}}>
-                Метформин, после еды
+                {c.reminderDrug}
               </div>
             </div>
           </div>

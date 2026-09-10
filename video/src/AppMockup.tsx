@@ -1,5 +1,6 @@
 import {interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {T} from './theme';
+import {useCopy} from './CopyContext';
 
 const Phone: React.FC<{children: React.ReactNode; scale?: number}> = ({children, scale = 1}) => (
   <div
@@ -95,48 +96,42 @@ const Row: React.FC<{name: string; val: string; ref?: string; tone?: 'warn' | 'o
 );
 
 // Экран разбора анализа: карточки въезжают по пружине, одна подсвечена.
-export const AppAnalysis: React.FC<{scale?: number}> = ({scale}) => (
+export const AppAnalysis: React.FC<{scale?: number}> = ({scale}) => {
+  const c = useCopy().analysis;
+  return (
   <Phone scale={scale}>
     <Card delay={4} dim>
-      <Row name="Гемоглобин" val="134" ref="120 – 150 г/л · норма" tone="ok" />
+      <Row name={c.hb} val="134" ref={c.hbRef} tone="ok" />
     </Card>
     <Card delay={12} highlight>
-      <Row name="Глюкоза" val="6,4" ref="норма 3,9 – 5,9 ммоль/л" tone="warn" />
-      <div
-        style={{
-          fontFamily: T.font,
-          fontSize: 30,
-          lineHeight: 1.42,
-          color: T.ink,
-          marginTop: 22,
-        }}
-      >
-        Это <b style={{background: T.accentSoft, padding: '2px 10px', borderRadius: 8}}>не диабет</b>.
-        Чаще всего — если кровь сдавали не натощак.
+      <Row name={c.glucose} val="6,4" ref={c.glucoseRef} tone="warn" />
+      <div style={{fontFamily: T.font, fontSize: 30, lineHeight: 1.42, color: T.ink, marginTop: 22}}>
+        {c.notDiabetesPre}
+        <b style={{background: T.accentSoft, padding: '2px 10px', borderRadius: 8}}>{c.notDiabetes}</b>
+        {c.notDiabetesPost}
       </div>
       <div style={{fontFamily: T.font, fontSize: 25, lineHeight: 1.42, color: T.ink2, marginTop: 18}}>
-        Пересдать утром натощак. Показать терапевту на плановом приёме.
+        {c.analysisNote}
       </div>
     </Card>
     <Card delay={20} dim>
-      <Row name="Лимфоциты" val="31 %" ref="19 – 37 % · норма" tone="ok" />
+      <Row name={c.lymph} val="31 %" ref={c.lymphRef} tone="ok" />
     </Card>
   </Phone>
-);
+  );
+};
 
 // Экран календаря: рецепт превращается в расписание приёма.
-export const AppCalendar: React.FC<{scale?: number}> = ({scale}) => (
+export const AppCalendar: React.FC<{scale?: number}> = ({scale}) => {
+  const c = useCopy().calendar;
+  return (
   <Phone scale={scale}>
     <Card delay={4} highlight>
-      <div style={{fontFamily: T.font, fontSize: 26, color: T.ink2, marginBottom: 6}}>По рецепту</div>
-      <div style={{fontFamily: T.font, fontSize: 40, fontWeight: 700, color: T.ink}}>
-        Метформин 500 мг
-      </div>
-      <div style={{fontFamily: T.font, fontSize: 27, color: T.ink2, marginTop: 6}}>
-        утром и вечером, после еды · 10 дней
-      </div>
+      <div style={{fontFamily: T.font, fontSize: 26, color: T.ink2, marginBottom: 6}}>{c.byRx}</div>
+      <div style={{fontFamily: T.font, fontSize: 40, fontWeight: 700, color: T.ink}}>{c.drug}</div>
+      <div style={{fontFamily: T.font, fontSize: 27, color: T.ink2, marginTop: 6}}>{c.dose}</div>
     </Card>
-    {['Пн', 'Вт', 'Ср', 'Чт'].map((d, i) => (
+    {c.days.map((d, i) => (
       <Card key={d} delay={12 + i * 5}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
           <div style={{fontFamily: T.font, fontSize: 30, fontWeight: 600, color: T.ink}}>{d}</div>
@@ -148,4 +143,5 @@ export const AppCalendar: React.FC<{scale?: number}> = ({scale}) => (
       </Card>
     ))}
   </Phone>
-);
+  );
+};
