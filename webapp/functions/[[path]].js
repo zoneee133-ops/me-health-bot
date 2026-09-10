@@ -60,6 +60,7 @@ export async function onRequest(context) {
     if (url.pathname === "/api/mailkey" && request.method === "POST") return json(await apiMailkey(request, env), 200, cors);
     if (url.pathname === "/api/report" && request.method === "POST") return json(await apiReport(request, env), 200, cors);
     if (url.pathname === "/api/queue" && request.method === "POST") return json(await apiQueuePush(request, env), 200, cors);
+    if (url.pathname === "/api/channel-post" && request.method === "POST") return json(await apiChannelPost(request, env), 200, cors);
     if (url.pathname === "/api/queue" && request.method === "GET") return json(await apiQueueList(request, url, env), 200, cors);
     if (url.pathname === "/api/health" && request.method === "POST") {
       // health-check LLM-цепочки. Только с админ-ключом в заголовке, без переопределения провайдера/модели/system.
@@ -1041,6 +1042,40 @@ async function sendMessage(env, chatId, text, replyMarkup) {
     });
     return r.json();
   } catch (e) { return null; }
+}
+
+// Публикация в канал @me_zdorovie через бота (бот должен быть админом канала).
+// Только с админ-ключом. Тип: text | photo | video. media — https URL картинки/видео.
+async function apiChannelPost(request, env) {
+  if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
+  const chat = env.CHANNEL_ID || "@me_zdorovie";
+  const b = await readJson(request);
+  const text = String(b.text || "").slice(0, 3800);
+  const media = typeof b.media === "string" && /^https:\/\/[^\s]+\.(jpg|jpeg|png|mp4)(\?|$)/i.test(b.media) ? b.media : null;
+  const pin = b.pin === true;
+
+  let method, payload;
+  if (media && /\.mp4(\?|$)/i.test(media)) {
+    method = "sendVideo"; payload = { chat_id: chat, video: media, caption: text, parse_mode: "HTML", supports_streaming: true };
+  } else if (media) {
+    method = "sendPhoto"; payload = { chat_id: chat, photo: media, caption: text, parse_mode: "HTML" };
+  } else {
+    if (!text) throw httpErr(400, "text or media required");
+    method = "sendMessage"; payload = { chat_id: chat, text, parse_mode: "HTML", link_preview_options: { is_disabled: !!b.no_preview } };
+  }
+  const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+  });
+  const data = await r.json().catch(() => null);
+  if (!data || !data.ok) throw httpErr(502, (data && data.description) || "telegram error");
+  const msgId = data.result && data.result.message_id;
+  if (pin && msgId) {
+    await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/pinChatMessage`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chat, message_id: msgId, disable_notification: true }),
+    }).catch(() => {});
+  }
+  return { ok: true, message_id: msgId };
 }
 
 async function sendVideo(env, chatId, videoUrl, caption) {
