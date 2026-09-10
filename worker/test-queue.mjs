@@ -129,5 +129,24 @@ for (let i = 0; i < 6; i++) await say(558, `вопрос ${i}`);
 assert.equal(sent.filter((s) => String(s.body.chat_id) === "777").length, 5);
 assert.match(sent.at(-1).body.text, /Уже передал/);
 
+// 13. вся цепочка распознавания легла -> Роберту летит ровно одна карточка, не поток
+env.GEMINI_KEY = "g";
+const okFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => {
+  if (String(url).includes("generativelanguage") || String(url).includes("openrouter") || String(url).includes("groq"))
+    return { ok: false, status: 429, json: async () => ({}) };
+  return okFetch(url, init);
+};
+const llm = () => call("/api/health", { method: "POST", headers: { "X-Setup-Key": "s", "Content-Type": "application/json" }, body: { content: "тест" } });
+env.SETUP_SECRET = "s";
+sent.length = 0;
+assert.equal((await llm()).status, 502);
+assert.equal((await llm()).status, 502);
+assert.equal((await llm()).status, 502);
+const alerts = sent.filter((s) => /sendMessage/.test(s.url) && /Сбой/.test(s.body.text || ""));
+assert.equal(alerts.length, 1, `ожидал 1 оповещение, пришло ${alerts.length}`);
+assert.match(alerts[0].body.text, /429/);
+globalThis.fetch = okFetch;
+
 console.log("ok — пульт: авторизация, очередь, одобрение, защита от повторного тапа");
 console.log("ok — поддержка: вопрос дошёл, разметка обезврежена, ответ вернулся, лимит держит");

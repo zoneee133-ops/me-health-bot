@@ -232,15 +232,23 @@ async function llmRaw(content, maxTokens, env, system) {
   const parts = toParts(content);
   if (!parts.length) throw httpErr(400, "empty content");
   const chain = buildChain(env);
-  if (!chain.length) throw httpErr(500, "no provider");
+  if (!chain.length) {
+    await alertAdmin(env, "Распознавание не настроено", "Ни один ключ провайдера не задан — приложение не разберёт ни один документ.");
+    throw httpErr(500, "no provider");
+  }
+  const why = [];
   for (const a of chain) {
     try {
       const res = await provCall(a.prov, a.model, parts, maxTokens, env, system);
-      if (!res.ok) continue;
+      if (!res.ok) { why.push(`${a.prov} ${res.status || "нет ответа"}`); continue; }
       const text = extractText(res.data);
       if (text.trim()) return { text: text.trim() };
-    } catch (e) { /* пробуем следующего */ }
+      why.push(`${a.prov} пустой ответ`);
+    } catch (e) { why.push(`${a.prov} ошибка`); }
   }
+  // упала вся цепочка, а не один провайдер — это видит пользователь, значит должен видеть и Роберт
+  await alertAdmin(env, "Распознавание не отвечает",
+    `Не ответил ни один провайдер: ${why.join(", ")}.\n\n429 — упёрлись в бесплатный лимит, 401 — протух ключ.`);
   throw httpErr(502, "llm unavailable");
 }
 
@@ -851,6 +859,22 @@ async function showQueue(env, uid) {
   const items = rows.results || [];
   if (!items.length) { await sendMessage(env, uid, "Очередь пуста."); return; }
   for (const r of items) await sendMessage(env, uid, queueCard(r), queueButtons(r.id));
+}
+
+/* ---------------- сбои: карточка Роберту, не чаще одной на тему в час ---------------- */
+
+async function alertAdmin(env, topic, detail) {
+  if (!env.ADMIN_ID) return;
+  try {
+    await ensureQueue(env);
+    const hourAgo = Date.now() - 3600000;
+    const dup = await env.DB.prepare("SELECT 1 FROM queue WHERE kind='flag' AND title=? AND created_at>?")
+      .bind(topic, hourAgo).first().catch(() => null);
+    if (dup) return;                                   // не будим одним и тем же весь час
+    await env.DB.prepare("INSERT INTO queue (id, kind, title, body, payload, status, created_at) VALUES (?,?,?,?,?, 'approved', ?)")
+      .bind(crypto.randomUUID(), "flag", topic, String(detail).slice(0, 500), "{}", Date.now()).run();
+    await sendMessage(env, env.ADMIN_ID, `⚠️ <b>Сбой</b>\n\n${plain(topic)}\n\n${plain(detail, 500)}`);
+  } catch (e) {}
 }
 
 /* ---------------- поддержка: вопрос пользователя -> Роберту, ответ -> обратно ---------------- */
