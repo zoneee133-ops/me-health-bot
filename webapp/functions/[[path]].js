@@ -1085,6 +1085,22 @@ async function apiChannelPost(request, env) {
   const text = String(b.text || "").slice(0, 3800);
   const media = typeof b.media === "string" && /^https:\/\/[^\s]+\.(jpg|jpeg|png|mp4)(\?|$)/i.test(b.media) ? b.media : null;
   const pin = b.pin === true;
+  const tg = (m, p) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${m}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }).then((r) => r.json()).catch(() => null);
+
+  // сервисные операции
+  if (b.op === "delete" && Number(b.message_id)) { await tg("deleteMessage", { chat_id: chat, message_id: Number(b.message_id) }); return { ok: true }; }
+  if (b.op === "set_photo" && media && !/\.mp4/i.test(media)) {
+    // setChatPhoto требует файл, не URL — качаем и шлём multipart
+    const img = await fetch(media);
+    if (!img.ok) throw httpErr(502, "cannot fetch image");
+    const fd = new FormData();
+    fd.append("chat_id", chat);
+    fd.append("photo", new Blob([await img.arrayBuffer()], { type: "image/png" }), "avatar.png");
+    const d = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/setChatPhoto`, { method: "POST", body: fd }).then((r) => r.json()).catch(() => null);
+    if (!d || !d.ok) throw httpErr(502, (d && d.description) || "photo failed");
+    return { ok: true };
+  }
+  if (b.op === "set_description") { const d = await tg("setChatDescription", { chat_id: chat, description: text }); if (!d || !d.ok) throw httpErr(502, (d && d.description) || "descr failed"); return { ok: true }; }
 
   let method, payload;
   if (media && /\.mp4(\?|$)/i.test(media)) {
