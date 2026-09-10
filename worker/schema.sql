@@ -16,3 +16,5 @@ CREATE INDEX IF NOT EXISTS idx_inbox_user ON inbox (user_id, status, created_at)
 
 CREATE TABLE IF NOT EXISTS mailkey (user_id TEXT PRIMARY KEY, token TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_mailkey_token ON mailkey (token);
+CREATE TABLE IF NOT EXISTS queue (id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT, body TEXT, payload TEXT, status TEXT DEFAULT 'pending', created_at INTEGER NOT NULL, decided_at INTEGER);
+CREATE INDEX IF NOT EXISTS queue_status ON queue (status, created_at);

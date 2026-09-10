@@ -1,5 +1,9 @@
 # локальная разработка через терминал: cp .dev.vars.example .dev.vars, заполни, wrangler dev
 BOT_TOKEN=
 OPENROUTER_KEY=
+GEMINI_KEY=
 SETUP_SECRET=dev
 WEBAPP_URL=http://localhost:8788
+# пульт: ADMIN_ID — твой Telegram user_id, ADMIN_KEY — секрет для агентов (POST/GET /api/queue)
+ADMIN_ID=
+ADMIN_KEY=dev

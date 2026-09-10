@@ -58,6 +58,8 @@ export async function onRequest(context) {
     if (url.pathname === "/api/inbox" && request.method === "POST") return json(await apiInboxConsume(request, env), 200, cors);
     if (url.pathname === "/api/inbox-mail" && request.method === "POST") return json(await apiInboxMail(request, env), 200, cors);
     if (url.pathname === "/api/mailkey" && request.method === "POST") return json(await apiMailkey(request, env), 200, cors);
+    if (url.pathname === "/api/queue" && request.method === "POST") return json(await apiQueuePush(request, env), 200, cors);
+    if (url.pathname === "/api/queue" && request.method === "GET") return json(await apiQueueList(request, url, env), 200, cors);
     if (url.pathname === "/api/health" && request.method === "POST") {
       // health-check LLM-цепочки. Только с админ-ключом в заголовке, без переопределения провайдера/модели/system.
       if (!env.SETUP_SECRET || !timingSafeEqual(request.headers.get("X-Setup-Key") || "", env.SETUP_SECRET)) throw httpErr(401, "unauthorized");
@@ -448,6 +450,8 @@ async function apiTick(url, env, ctx) {
     }
   } catch (e) {}
 
+  try { await weeklyDigest(env, now); } catch (e) {}
+
   const { results } = await env.DB.prepare("SELECT * FROM meds WHERE active=1 LIMIT 2000").all();
   for (const m of results || []) {
     const tz = Number.isFinite(m.tz_offset) ? m.tz_offset : 180;
@@ -487,7 +491,10 @@ async function handleWebhook(request, env) {
 
   const cq = u && u.callback_query;
   if (cq && cq.data && cq.from) {
-    try { await handleMailCallback(env, cq); } catch (e) {}
+    try {
+      if (String(cq.data).startsWith("q:")) await handleQueueCallback(env, cq);
+      else await handleMailCallback(env, cq);
+    } catch (e) {}
     return new Response("ok");
   }
 
@@ -502,6 +509,8 @@ async function handleWebhook(request, env) {
         .bind(fromId, String(m.from.first_name || "").slice(0, 64), Date.now()).run().catch(() => {});
     }
     if (typeof m.text !== "string") {
+      // голосовая идея от Роберта — в очередь пульта, остальным голосовые не обрабатываем
+      if (isSelf && m.voice && isAdmin(env, fromId)) { try { await handleVoiceIdea(env, m, fromId); } catch (e) {} return new Response("ok"); }
       if (isSelf && (m.photo || m.document)) { try { await handleInboxFile(env, m, fromId); } catch (e) {} }
       return new Response("ok");
     }
@@ -523,6 +532,10 @@ async function handleWebhook(request, env) {
           { text: "Gmail", callback_data: "mail:gmail" },
           { text: "Яндекс", callback_data: "mail:yandex" },
         ]] });
+    } else if (text === "/whoami" && isSelf) {
+      await sendMessage(env, chatId, `Ваш Telegram ID: <code>${fromId}</code>`);
+    } else if (text.startsWith("/queue") && isSelf && isAdmin(env, fromId)) {
+      await showQueue(env, fromId);
     } else if (text === "/restart" && isSelf) {
       await sendMessage(env, chatId, "⚠️ <b>Сброс всех данных</b>\n\nБудут безвозвратно удалены все анализы, снимки, расписание лекарств и напоминания.\n\nПодтвердите: отправьте <code>/restart confirm</code>");
     } else if (text === "/restart confirm" && isSelf) {
@@ -713,6 +726,202 @@ async function apiInboxMail(request, env) {
       { inline_keyboard: [[{ text: "🩺 Открыть Me", web_app: { url: env.WEBAPP_URL + "?startapp=inbox" } }]] });
   }
   return { ok: true };
+}
+
+/* ---------------- пульт: очередь на одобрение ----------------
+   Агенты кладут карточку через POST /api/queue (заголовок X-Admin-Key),
+   Роберту в бот прилетает карточка с кнопками, решение забирается через GET /api/queue.
+   Ничего не публикуется и не деплоится до тапа — карточка лишь описывает намерение. */
+
+const QUEUE_KINDS = {
+  reel:     "🎬 Ролик",
+  deploy:   "🚀 Деплой в прод",
+  spend:    "💳 Трата",
+  flag:     "🚩 Нужно решение",
+  idea:     "💡 Идея",
+  feedback: "💬 Фидбек",
+};
+const QUEUE_MAX_PENDING = 100;
+
+function isAdmin(env, uid) {
+  return !!env.ADMIN_ID && String(env.ADMIN_ID) === String(uid);
+}
+
+async function ensureQueue(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS queue (id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT, body TEXT, payload TEXT, status TEXT DEFAULT 'pending', created_at INTEGER NOT NULL, decided_at INTEGER)"
+  ).run().catch(() => {});
+}
+
+function queueCard(row) {
+  const head = QUEUE_KINDS[row.kind] || "📌 Задача";
+  return `${head}\n\n<b>${plain(row.title)}</b>\n\n${plain(row.body)}`;
+}
+function queueButtons(id) {
+  return { inline_keyboard: [[
+    { text: "✅ Одобрить", callback_data: `q:ok:${id}` },
+    { text: "✖️ Отклонить", callback_data: `q:no:${id}` },
+  ]] };
+}
+
+async function apiQueuePush(request, env) {
+  const body = await readJson(request);
+  if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
+  if (!env.ADMIN_ID) throw httpErr(500, "ADMIN_ID not set");
+  const kind = String(body.kind || "");
+  if (!QUEUE_KINDS[kind]) throw httpErr(400, "bad kind");
+  const title = String(body.title || "").slice(0, 200);
+  if (!title) throw httpErr(400, "title required");
+  await ensureQueue(env);
+
+  const cnt = await env.DB.prepare("SELECT COUNT(*) AS c FROM queue WHERE status='pending'").first().catch(() => ({ c: 0 }));
+  if ((cnt && cnt.c || 0) >= QUEUE_MAX_PENDING) throw httpErr(429, "queue full");
+
+  const row = {
+    id: crypto.randomUUID(),
+    kind,
+    title,
+    body: String(body.body || "").slice(0, 2000),
+    payload: JSON.stringify(body.payload == null ? {} : body.payload).slice(0, 8000),
+  };
+  await env.DB.prepare("INSERT INTO queue (id, kind, title, body, payload, status, created_at) VALUES (?,?,?,?,?, 'pending', ?)")
+    .bind(row.id, row.kind, row.title, row.body, row.payload, Date.now()).run();
+
+  await sendMessage(env, env.ADMIN_ID, queueCard(row), queueButtons(row.id));
+  return { ok: true, id: row.id };
+}
+
+async function apiQueueList(request, url, env) {
+  if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
+  await ensureQueue(env);
+  const status = String(url.searchParams.get("status") || "approved");
+  if (!["pending", "approved", "rejected"].includes(status)) throw httpErr(400, "bad status");
+  const kind = String(url.searchParams.get("kind") || "");
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50", 10) || 50, 1), 200);
+  const sql = "SELECT id, kind, title, body, payload, status, created_at, decided_at FROM queue WHERE status=?"
+    + (kind ? " AND kind=?" : "") + " ORDER BY created_at ASC LIMIT ?";
+  const stmt = kind ? env.DB.prepare(sql).bind(status, kind, limit) : env.DB.prepare(sql).bind(status, limit);
+  const rows = await stmt.all().catch(() => ({ results: [] }));
+  return { items: (rows.results || []).map((r) => ({ ...r, payload: safeParse(r.payload) })) };
+}
+
+async function handleQueueCallback(env, cq) {
+  fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: cq.id }),
+  }).catch(() => {});
+  if (!isAdmin(env, cq.from.id)) return;
+
+  const mm = /^q:(ok|no):([0-9a-f-]{36})$/.exec(String(cq.data));
+  if (!mm) return;
+  const [, verb, id] = mm;
+  await ensureQueue(env);
+
+  // решаем только то, что ещё висит — повторный тап по старой карточке ничего не переигрывает
+  const res = await env.DB.prepare("UPDATE queue SET status=?, decided_at=? WHERE id=? AND status='pending'")
+    .bind(verb === "ok" ? "approved" : "rejected", Date.now(), id).run().catch(() => null);
+  const changed = res && res.meta && res.meta.changes;
+
+  const mark = !changed ? "\n\n<i>Уже решено раньше.</i>"
+    : verb === "ok" ? "\n\n✅ <b>Одобрено</b>" : "\n\n✖️ <b>Отклонено</b>";
+  if (cq.message) {
+    await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/editMessageText`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: cq.message.chat.id, message_id: cq.message.message_id,
+        text: (cq.message.text || "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])) + mark,
+        parse_mode: "HTML", link_preview_options: { is_disabled: true },
+      }),
+    }).catch(() => {});
+  }
+}
+
+async function showQueue(env, uid) {
+  await ensureQueue(env);
+  const rows = await env.DB.prepare("SELECT id, kind, title, body FROM queue WHERE status='pending' ORDER BY created_at ASC LIMIT 10")
+    .all().catch(() => ({ results: [] }));
+  const items = rows.results || [];
+  if (!items.length) { await sendMessage(env, uid, "Очередь пуста."); return; }
+  for (const r of items) await sendMessage(env, uid, queueCard(r), queueButtons(r.id));
+}
+
+/* голосовая идея: расшифровка через Gemini, дальше сценарист берёт её из очереди */
+const VOICE_MAX_BYTES = 3 * 1024 * 1024;
+
+async function handleVoiceIdea(env, m, uid) {
+  if (!env.GEMINI_KEY) { await sendMessage(env, uid, "Расшифровка недоступна: GEMINI_KEY не задан."); return; }
+  if ((m.voice.file_size || 0) > VOICE_MAX_BYTES) { await sendMessage(env, uid, "Голосовое слишком длинное. До 3 МБ."); return; }
+
+  const info = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getFile?file_id=${encodeURIComponent(m.voice.file_id)}`).then((r) => r.json());
+  if (!info || !info.ok) { await sendMessage(env, uid, "Не получилось скачать голосовое."); return; }
+  const buf = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${info.result.file_path}`).then((r) => r.arrayBuffer());
+  if (buf.byteLength > VOICE_MAX_BYTES) { await sendMessage(env, uid, "Голосовое слишком длинное. До 3 МБ."); return; }
+
+  const text = await transcribe(env, b64FromBuf(buf), m.voice.mime_type || "audio/ogg");
+  if (!text) { await sendMessage(env, uid, "Не разобрал запись. Попробуйте ещё раз или напишите текстом."); return; }
+
+  const when = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
+  await ensureQueue(env);
+  const id = crypto.randomUUID();
+  await env.DB.prepare("INSERT INTO queue (id, kind, title, body, payload, status, created_at) VALUES (?,?,?,?,?, 'approved', ?)")
+    .bind(id, "idea", `Идея от ${when} МСК`, text.slice(0, 2000), JSON.stringify({ source: "voice", at: when }), Date.now()).run();
+
+  await sendMessage(env, uid, `💡 <b>Идея записана</b>\n\n${plain(text)}\n\nСценарист возьмёт её в работу — готовый ролик придёт сюда на одобрение.`);
+}
+
+async function transcribe(env, b64, mime) {
+  const model = env.GEMINI_MODEL || "gemini-3.1-flash-lite";
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { text: "Расшифруй эту голосовую запись дословно на русском. Верни только текст расшифровки, без комментариев." },
+          { inline_data: { mime_type: mime, data: b64 } },
+        ] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 1000 },
+      }),
+    });
+    if (!r.ok) return "";
+    const d = await r.json();
+    const parts = d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts;
+    return (parts || []).map((p) => p.text || "").join("").trim();
+  } catch { return ""; }
+}
+
+/* недельная сводка по аудитории — понедельник, 10:00 МСК, один раз в неделю */
+async function weeklyDigest(env, now) {
+  if (!env.ADMIN_ID) return;
+  const msk = new Date(now + 3 * 3600 * 1000);
+  if (msk.getUTCDay() !== 1 || msk.getUTCHours() !== 10) return;
+
+  await ensureQueue(env);
+  const tag = `Сводка за неделю до ${msk.toISOString().slice(0, 10)}`;
+  const dup = await env.DB.prepare("SELECT 1 FROM queue WHERE kind='feedback' AND title=?").bind(tag).first().catch(() => null);
+  if (dup) return;
+
+  const weekAgo = now - 7 * 86400000;
+  const one = async (sql, ...b) => ((await env.DB.prepare(sql).bind(...b).first().catch(() => null)) || { c: 0 }).c;
+  const users = await one("SELECT COUNT(*) AS c FROM users");
+  const newUsers = await one("SELECT COUNT(*) AS c FROM users WHERE created_at>?", weekAgo);
+  const analyses = await one("SELECT COUNT(*) AS c FROM analyses WHERE created_at>?", weekAgo);
+  const active = await one("SELECT COUNT(DISTINCT user_id) AS c FROM analyses WHERE created_at>?", weekAgo);
+  const pending = await one("SELECT COUNT(*) AS c FROM queue WHERE status='pending'");
+  const fb = await one("SELECT COUNT(*) AS c FROM queue WHERE kind='feedback' AND created_at>?", weekAgo);
+
+  await env.DB.prepare("INSERT INTO queue (id, kind, title, body, payload, status, created_at) VALUES (?,?,?,?,?, 'approved', ?)")
+    .bind(crypto.randomUUID(), "feedback", tag, "автосводка", "{}", now).run().catch(() => {});
+
+  await sendMessage(env, env.ADMIN_ID,
+    `📊 <b>${tag}</b>\n\n` +
+    `Пользователей всего: <b>${users}</b>\n` +
+    `Новых за неделю: <b>${newUsers}</b>\n` +
+    `Активных (загрузили документ): <b>${active}</b>\n` +
+    `Разборов за неделю: <b>${analyses}</b>\n` +
+    `Фидбека за неделю: <b>${fb}</b>\n` +
+    `Висит на одобрении: <b>${pending}</b>` + (pending ? " — команда /queue" : "") + `\n\n` +
+    `<i>Деньги не считаем — платёжка ещё не подключена.</i>`);
 }
 
 async function sendMessage(env, chatId, text, replyMarkup) {
