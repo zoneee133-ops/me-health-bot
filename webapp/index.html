@@ -200,51 +200,56 @@
       0 26px 48px -18px rgba(20,20,18,0.12);
     animation:askFloat 7s ease-in-out infinite;
   }
-  /* тонкий кант + бегущий по нему световой блик */
+  /* видимая обводка: полный кант-градиент вращается, два световых сегмента идут по контуру */
   .status-card.card-ask::before{
     content:"";
     position:absolute;
     inset:0;
     border-radius:inherit;
-    padding:1.3px;
+    padding:1.6px;
     pointer-events:none;
     z-index:1;
-    background:
-      conic-gradient(from var(--ask-ang),
-        rgba(120,140,175,0.10) 0deg,
-        rgba(255,255,255,1) 24deg,
-        rgba(150,170,205,0.8) 46deg,
-        rgba(120,140,175,0.12) 74deg,
-        rgba(33,40,66,0.14) 200deg,
-        rgba(120,140,175,0.10) 360deg);
+    background:conic-gradient(from var(--ask-ang),
+      rgba(33,40,66,0.22) 0deg,
+      #ffffff 40deg,
+      #9fb0d0 78deg,
+      rgba(33,40,66,0.22) 140deg,
+      rgba(33,40,66,0.22) 180deg,
+      #eef2fb 220deg,
+      #8ea3c8 256deg,
+      rgba(33,40,66,0.22) 320deg,
+      rgba(33,40,66,0.22) 360deg);
     -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite:xor;
     mask-composite:exclude;
-    animation:askSpin 8s linear infinite;
+    animation:askSpin 5s linear infinite;
   }
-  /* мягкое свечение блика, чуть шире канта */
+  /* мягкое свечение под светлыми сегментами обводки */
   .status-card.card-ask::after{
     content:"";
     position:absolute;
     inset:0;
     border-radius:inherit;
-    padding:1.3px;
+    padding:1.6px;
     pointer-events:none;
     z-index:0;
     background:conic-gradient(from var(--ask-ang),
-      rgba(255,255,255,0) 0deg,
-      rgba(224,232,248,0.95) 28deg,
-      rgba(180,198,228,0.55) 52deg,
-      rgba(255,255,255,0) 88deg,
-      rgba(255,255,255,0) 360deg);
+      transparent 8deg,
+      rgba(232,238,250,0.95) 44deg,
+      rgba(150,170,208,0.5) 82deg,
+      transparent 130deg,
+      transparent 188deg,
+      rgba(232,238,250,0.9) 224deg,
+      rgba(150,170,208,0.45) 260deg,
+      transparent 306deg);
     -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite:xor;
     mask-composite:exclude;
-    filter:blur(8px);
-    opacity:0.9;
-    animation:askSpin 8s linear infinite;
+    filter:blur(7px);
+    opacity:0.85;
+    animation:askSpin 5s linear infinite;
   }
   @keyframes askSpin{ to{ --ask-ang:360deg; } }
   @keyframes askFloat{
