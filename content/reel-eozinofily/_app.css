@@ -1,0 +1,21 @@
+body{background:#E4D9C1;display:flex;align-items:center;justify-content:center}
+.phone{width:940px;background:#F0E7D5;border-radius:56px;padding:54px 44px 60px;
+  box-shadow:0 40px 100px rgba(20,20,18,.28);min-height:1500px}
+.top{display:flex;align-items:center;gap:16px;margin-bottom:38px}
+.mark{width:60px;height:60px;border-radius:18px;background:#7E9A97;display:flex;align-items:center;justify-content:center}
+.mark svg{width:36px;height:36px}
+.brand{font-size:31px;font-weight:600;color:#212842;letter-spacing:-.01em}
+.card{background:#fff;border-radius:28px;padding:34px 36px;margin-bottom:24px;box-shadow:0 14px 36px rgba(20,20,18,.05)}
+.row{display:flex;justify-content:space-between;align-items:baseline}
+.nm{font-size:34px;font-weight:600;color:#212842}
+.val{font-size:36px;font-weight:700;font-variant-numeric:tabular-nums}
+.ref{font-size:24px;color:#9A9FB0;margin-top:8px}
+.warn{color:#A67C3A}
+.chip{display:inline-block;font-size:22px;font-weight:600;padding:9px 18px;border-radius:999px;background:#F5EDE3;color:#A67C3A;margin-top:20px}
+.expl{font-size:31px;line-height:1.45;color:#212842;margin-top:26px}
+.expl b{background:#E7F0EE;padding:2px 10px;border-radius:8px;color:#3E6B66}
+.muted{font-size:26px;line-height:1.45;color:#5B6178;margin-top:20px}
+.dim{opacity:.35}
+.phone{position:relative;min-height:1780px;display:flex;flex-direction:column;justify-content:center;padding-top:0}
+.top{position:absolute;top:60px;left:44px;margin:0}
+.card:last-of-type{margin-bottom:0}

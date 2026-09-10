@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+body{background:radial-gradient(120% 80% at 50% 35%,#9a9488 0%,#6f6a60 100%);display:flex;align-items:center;justify-content:center}
+.paper{width:1012px;background:#fdfcf8;padding:70px 64px;box-shadow:0 40px 90px rgba(0,0,0,.45);
+  transform:rotate(-.6deg);position:relative;font-size:30px;color:#1d1d1b}
+.paper:before{content:"";position:absolute;inset:0;background:
+  linear-gradient(102deg,rgba(0,0,0,.05) 0%,transparent 22%,transparent 74%,rgba(0,0,0,.07) 100%);pointer-events:none}
+.lab{font-size:38px;font-weight:700;letter-spacing:.02em}
+.sub{font-size:25px;color:#6b6a64;margin-top:7px}
+hr{border:0;border-top:2px solid #1d1d1b;margin:22px 0 20px}
+.meta{display:flex;justify-content:space-between;font-size:27px;color:#1d1d1b;margin-bottom:6px}
+.meta span{color:#6b6a64}
+h2{font-size:29px;margin:34px 0 18px;letter-spacing:.04em;text-transform:uppercase}
+table{width:100%;border-collapse:collapse;font-size:29px}
+th{text-align:left;font-size:23px;color:#6b6a64;font-weight:600;padding:0 0 10px;border-bottom:1px solid #cfcdc4}
+td{padding:19px 0;border-bottom:1px solid #eceae2}
+td.v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;width:225px}
+td.r{text-align:right;color:#6b6a64;font-size:25px;width:275px}
+tr.hi td{background:#fdeceb}
+tr.hi td.v{color:#c0392b}
+tr.hi td:first-child{font-weight:600}
+.up{font-size:24px;margin-left:9px}
+.foot{margin-top:30px;font-size:23px;color:#8b897f;display:flex;justify-content:space-between}
+</style>
+<div class="paper">
+  <div class="lab">МЕДЛАБ-НОРД</div>
+  <div class="sub">Клинико-диагностическая лаборатория · г. Санкт-Петербург</div>
+  <hr>
+  <div class="meta"><b>Пациент:</b> <span>Соколова А. В., 34 г.</span></div>
+  <div class="meta"><b>Дата забора:</b> <span>14.08.2026, 08:20</span></div>
+  <div class="meta"><b>Заказ №:</b> <span>4471-2026</span></div>
+  <h2>Общий анализ крови</h2>
+  <table>
+    <tr><th>Показатель</th><th style="text-align:right">Результат</th><th style="text-align:right">Референс</th></tr>
+    <tr><td>Гемоглобин</td><td class="v">134</td><td class="r">120 – 150 г/л</td></tr>
+    <tr><td>Эритроциты</td><td class="v">4,52</td><td class="r">3,80 – 5,10</td></tr>
+    <tr><td>Лейкоциты</td><td class="v">6,8</td><td class="r">4,0 – 9,0</td></tr>
+    <tr class="hi"><td>Эозинофилы</td><td class="v">7,2<span class="up">▲</span></td><td class="r">0,5 – 5,0 %</td></tr>
+    <tr><td>Лимфоциты</td><td class="v">31</td><td class="r">19 – 37 %</td></tr>
+    <tr><td>Тромбоциты</td><td class="v">248</td><td class="r">180 – 320</td></tr>
+    <tr><td>СОЭ</td><td class="v">9</td><td class="r">2 – 15 мм/ч</td></tr>
+  </table>
+  <div class="foot"><span>Врач-лаборант: Кузнецова М. И.</span><span>стр. 1 из 1</span></div>
+</div>
