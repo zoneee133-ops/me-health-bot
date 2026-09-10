@@ -1,0 +1,33 @@
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F5F1E8; --bg2:#ECE6D8; --ink:#1C2136; --ink2:#5B6178; --ink3:#9AA0AE;
+  --accent:#7E9A97; --accentSoft:#E7EEEC; --warn:#A9803C; --bad:#C8443A;
+  --font:-apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+}
+html,body{width:100%;height:100%;font-family:var(--font);-webkit-font-smoothing:antialiased}
+.cover{width:600px;height:600px;background:radial-gradient(120% 120% at 38% 30%,var(--bg),var(--bg2));
+  display:flex;align-items:center;justify-content:center}
+.cover svg{width:230px;height:230px}
+.story{width:1080px;height:1920px;background:radial-gradient(120% 90% at 50% 28%,var(--bg),var(--bg2));
+  display:flex;flex-direction:column;justify-content:center;padding:0 130px;position:relative}
+.story .mark{position:absolute;top:120px;left:130px;display:flex;align-items:center;gap:16px}
+.story .mark .m{width:56px;height:56px;border-radius:17px;background:var(--accent);display:flex;align-items:center;justify-content:center}
+.story .mark .m svg{width:32px;height:32px}
+.story .mark b{font-size:30px;color:var(--ink);font-weight:600}
+.rule{width:56px;height:3px;background:var(--accent);border-radius:2px;margin-bottom:40px}
+.kick{font-size:32px;color:var(--ink2);letter-spacing:.02em;margin-bottom:20px}
+h1{font-size:76px;line-height:1.16;font-weight:700;color:var(--ink);letter-spacing:-.02em}
+p{font-size:38px;line-height:1.45;color:var(--ink2);margin-top:34px}
+.foot{position:absolute;bottom:150px;left:130px;right:130px;font-size:30px;color:var(--ink3)}
+.foot b{color:var(--accent)}
+.post{width:1080px;height:1350px;background:radial-gradient(120% 100% at 50% 25%,var(--bg),var(--bg2));
+  display:flex;flex-direction:column;justify-content:center;padding:0 120px;position:relative}
+.post .mark{position:absolute;top:96px;left:120px;display:flex;align-items:center;gap:15px}
+.post .mark .m{width:54px;height:54px;border-radius:16px;background:var(--accent);display:flex;align-items:center;justify-content:center}
+.post .mark .m svg{width:31px;height:31px}
+.post .mark b{font-size:29px;color:var(--ink);font-weight:600}
+.post .rule{width:54px;height:3px;background:var(--accent);border-radius:2px;margin-bottom:36px}
+.post h1{font-size:82px;line-height:1.14;font-weight:700;color:var(--ink);letter-spacing:-.02em}
+.post p{font-size:36px;line-height:1.45;color:var(--ink2);margin-top:32px}
+.post .foot{position:absolute;bottom:110px;left:120px;font-size:28px;color:var(--ink3)}
+.post .foot b{color:var(--accent)}
