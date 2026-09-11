@@ -11,6 +11,10 @@ import {ReelFerritin} from './reels/ReelFerritin';
 import {ReelReport} from './reels/ReelReport';
 import {ReelMail} from './reels/ReelMail';
 import {ReelScan} from './reels/ReelScan';
+import {ReelKidsUrine} from './reels/ReelKidsUrine';
+import {ReelSportCheckup} from './reels/ReelSportCheckup';
+import {ReelKidsAgeNorms} from './reels/ReelKidsAgeNorms';
+import {ReelRefRange} from './reels/ReelRefRange';
 
 const reel = (id: string, component: React.FC, durationInFrames: number) => (
   <Composition
@@ -53,11 +57,15 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="Promo3D" component={Promo3D} durationInFrames={480} fps={30} width={1080} height={1920} />
     {reel('ReelDecode', ReelDecode, 620)}
     {reel('ReelHandwriting', ReelHandwriting, 585)}
-    {reel('ReelShowMom', ReelShowMom, 635)}
+    {reel('ReelShowMom', ReelShowMom, 700)}
     {reel('ReelAboveNormal', ReelAboveNormal, 610)}
     {reel('ReelFerritin', ReelFerritin, 730)}
     {reel('ReelReport', ReelReport, 725)}
     {reel('ReelMail', ReelMail, 730)}
     {reel('ReelScan', ReelScan, 805)}
+    {reel('ReelKidsUrine', ReelKidsUrine, 560)}
+    {reel('ReelSportCheckup', ReelSportCheckup, 622)}
+    {reel('ReelKidsAgeNorms', ReelKidsAgeNorms, 657)}
+    {reel('ReelRefRange', ReelRefRange, 651)}
   </>
 );

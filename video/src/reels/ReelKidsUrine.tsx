@@ -1,41 +1,50 @@
 import {AbsoluteFill, interpolate, Sequence, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {T} from '../theme';
-import {ReelBg, Scene, Sparkle, Caption} from './shared';
+import {ReelBg, Scene} from './shared';
 
-// Реел D — «Что значит выше нормы». Самый минималистичный: типографика и числа.
+// Реел «Анализ мочи у ребёнка». Хук сразу на пугающем слове — без разгона.
 
 const RangeScene: React.FC = () => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const lo = 3.9;
-  const hi = 5.9;
-  const target = 6.4;
-  const axisMin = 3;
-  const axisMax = 7.4;
+  const lo = 0;
+  const hi = 5;
+  const target = 9;
+  const axisMin = 0;
+  const axisMax = 12;
   const barW = 760;
 
-  const count = spring({frame: f - 26, fps, durationInFrames: 46, config: {damping: 200}});
+  const titleIn = spring({frame: f - 2, fps, config: {damping: 200}});
+  const count = spring({frame: f - 12, fps, durationInFrames: 40, config: {damping: 200}});
   const val = interpolate(count, [0, 1], [lo, target]);
   const pos = (v: number) => ((v - axisMin) / (axisMax - axisMin)) * barW;
 
-  const barIn = spring({frame: f - 8, fps, config: {damping: 200, mass: 1.3}});
-  const dot = spring({frame: f - 40, fps, config: {damping: 140, mass: 1}});
+  const barIn = spring({frame: f - 2, fps, config: {damping: 200, mass: 1.3}});
+  const dot = spring({frame: f - 30, fps, config: {damping: 140, mass: 1}});
 
   return (
     <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', fontFamily: T.font}}>
-      <div style={{marginTop: 140, opacity: barIn, transform: `translateY(${interpolate(barIn, [0, 1], [30, 0])}px)`}}>
-        <div style={{fontSize: 34, color: T.ink2, textAlign: 'center', marginBottom: 46}}>
-          Глюкоза крови, ммоль/л
+      <div
+        style={{
+          marginTop: -40,
+          textAlign: 'center',
+          opacity: titleIn,
+          transform: `translateY(${interpolate(titleIn, [0, 1], [-16, 0])}px)`,
+        }}
+      >
+        <div style={{fontSize: 44, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em'}}>
+          Лейкоциты у ребёнка
+        </div>
+        <div style={{fontSize: 30, color: T.warn, fontWeight: 600, marginTop: 10}}>
+          и вы уже гуглите «инфекция»
+        </div>
+      </div>
+      <div style={{marginTop: 96, opacity: barIn, transform: `translateY(${interpolate(barIn, [0, 1], [30, 0])}px)`}}>
+        <div style={{fontSize: 30, color: T.ink2, textAlign: 'center', marginBottom: 40}}>
+          В поле зрения, моча
         </div>
         <div style={{position: 'relative', width: barW, height: 14, margin: '0 auto'}}>
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: T.line,
-              borderRadius: 7,
-            }}
-          />
+          <div style={{position: 'absolute', inset: 0, background: T.line, borderRadius: 7}} />
           <div
             style={{
               position: 'absolute',
@@ -47,7 +56,6 @@ const RangeScene: React.FC = () => {
               borderRadius: 7,
             }}
           />
-          {/* маркер значения */}
           <div
             style={{
               position: 'absolute',
@@ -64,20 +72,16 @@ const RangeScene: React.FC = () => {
           />
         </div>
         <div style={{position: 'relative', width: barW, margin: '30px auto 0', height: 40}}>
-          <span style={{position: 'absolute', left: pos(lo) - 24, fontSize: 24, color: T.ink3}}>
-            {lo.toFixed(1).replace('.', ',')}
-          </span>
-          <span style={{position: 'absolute', left: pos(hi) - 24, fontSize: 24, color: T.ink3}}>
-            {hi.toFixed(1).replace('.', ',')}
-          </span>
+          <span style={{position: 'absolute', left: pos(lo) - 10, fontSize: 24, color: T.ink3}}>{lo}</span>
+          <span style={{position: 'absolute', left: pos(hi) - 10, fontSize: 24, color: T.ink3}}>{hi}</span>
         </div>
         <div style={{textAlign: 'center', marginTop: 40}}>
-          <span style={{fontSize: 130, fontWeight: 700, color: T.warn, letterSpacing: '-0.03em'}}>
-            {val.toFixed(1).replace('.', ',')}
+          <span style={{fontSize: 120, fontWeight: 700, color: T.warn, letterSpacing: '-0.03em'}}>
+            {Math.round(val)}
           </span>
         </div>
-        <div style={{textAlign: 'center', fontSize: 30, color: T.ink2, marginTop: 10}}>
-          выше нормы на {(((target - hi) / hi) * 100).toFixed(0)} %
+        <div style={{textAlign: 'center', fontSize: 28, color: T.ink2, marginTop: 10}}>
+          выше нормы
         </div>
       </div>
     </AbsoluteFill>
@@ -116,7 +120,7 @@ const Reason: React.FC<{text: string; delay: number; idx: number}> = ({text, del
       >
         {idx}
       </div>
-      <div style={{fontSize: 46, fontWeight: 600, color: T.ink, letterSpacing: '-0.015em'}}>{text}</div>
+      <div style={{fontSize: 42, fontWeight: 600, color: T.ink, letterSpacing: '-0.015em'}}>{text}</div>
     </div>
   );
 };
@@ -127,7 +131,7 @@ const ReasonsScene: React.FC = () => {
   const title = spring({frame: f - 6, fps, config: {damping: 200}});
   return (
     <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', fontFamily: T.font}}>
-      <div style={{width: 800}}>
+      <div style={{width: 820}}>
         <div
           style={{
             fontSize: 34,
@@ -139,9 +143,9 @@ const ReasonsScene: React.FC = () => {
         >
           Так бывает, когда:
         </div>
-        <Reason idx={1} text="сдавали не натощак" delay={16} />
-        <Reason idx={2} text="мало спали накануне" delay={44} />
-        <Reason idx={3} text="мало пили воды" delay={72} />
+        <Reason idx={1} text="баночка постояла" delay={16} />
+        <Reason idx={2} text="собрали не первую порцию" delay={44} />
+        <Reason idx={3} text="тара была не совсем чистая" delay={72} />
       </div>
     </AbsoluteFill>
   );
@@ -166,20 +170,12 @@ const ClosingScene: React.FC<{dur: number}> = ({dur}) => {
       }}
     >
       <div style={{textAlign: 'center', transform: `scale(${interpolate(s, [0, 1], [0.92, 1])})`}}>
-        <div
-          style={{
-            width: 56,
-            height: 3,
-            borderRadius: 2,
-            background: T.accent,
-            margin: '0 auto 34px',
-          }}
-        />
-        <div style={{fontSize: 62, fontWeight: 700, color: T.ink, lineHeight: 1.28, letterSpacing: '-0.02em'}}>
-          Отклонение на проценты<br />≠ болезнь
+        <div style={{width: 56, height: 3, borderRadius: 2, background: T.accent, margin: '0 auto 34px'}} />
+        <div style={{fontSize: 58, fontWeight: 700, color: T.ink, lineHeight: 1.28, letterSpacing: '-0.02em'}}>
+          Пересдайте утром,<br />правильно
         </div>
-        <div style={{fontSize: 32, color: T.ink2, marginTop: 30, lineHeight: 1.4}}>
-          Пересдайте спокойно. При стойком превышении — покажите врачу.
+        <div style={{fontSize: 30, color: T.ink2, marginTop: 30, lineHeight: 1.4}}>
+          Держится — покажите педиатру. Разово — обычно просто сбор.
         </div>
         <div style={{fontSize: 30, color: T.accent, marginTop: 40, fontWeight: 600}}>
           @me_abouthealth_bot
@@ -189,29 +185,21 @@ const ClosingScene: React.FC<{dur: number}> = ({dur}) => {
   );
 };
 
-export const ReelAboveNormal: React.FC = () => (
+export const ReelKidsUrine: React.FC = () => (
   <AbsoluteFill style={{fontFamily: T.font}}>
     <ReelBg />
-    <Sequence from={0} durationInFrames={221}>
-      <Scene from={0} dur={221}>
+    <Sequence from={0} durationInFrames={137}>
+      <Scene from={0} dur={137}>
         <RangeScene />
-        <Caption
-          lines={['Пришёл анализ:', 'глюкоза выше нормы']}
-          from={0}
-          dur={40}
-          align="top"
-          scrim={false}
-          dark
-        />
       </Scene>
     </Sequence>
-    <Sequence from={221} durationInFrames={179}>
-      <Scene from={0} dur={179}>
+    <Sequence from={137} durationInFrames={225}>
+      <Scene from={0} dur={225}>
         <ReasonsScene />
       </Scene>
     </Sequence>
-    <Sequence from={400} durationInFrames={181}>
-      <ClosingScene dur={181} />
+    <Sequence from={362} durationInFrames={184}>
+      <ClosingScene dur={184} />
     </Sequence>
   </AbsoluteFill>
 );

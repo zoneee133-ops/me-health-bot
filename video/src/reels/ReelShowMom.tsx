@@ -144,9 +144,11 @@ const TgChat: React.FC<{children: React.ReactNode; typing?: boolean}> = ({childr
         position: 'absolute',
         left: 40,
         right: 40,
-        bottom: 150,
+        top: 220,
+        bottom: 220,
         display: 'flex',
         flexDirection: 'column',
+        justifyContent: 'center',
       }}
     >
       {children}
@@ -192,8 +194,8 @@ export const ReelShowMom: React.FC = () => (
   <AbsoluteFill style={{fontFamily: T.font}}>
     <ReelBg />
 
-    <Sequence from={0} durationInFrames={210}>
-      <Scene from={0} dur={210}>
+    <Sequence from={0} durationInFrames={182}>
+      <Scene from={0} dur={182}>
         <TgChat typing>
           <Bubble side="in" delay={16} time="10:24">
             <FormThumb />
@@ -203,9 +205,17 @@ export const ReelShowMom: React.FC = () => (
           </Bubble>
         </TgChat>
         <Caption
+          lines={['Мама прислала', 'бланк анализов']}
+          from={0}
+          dur={88}
+          align="top"
+          scrim={false}
+          dark
+        />
+        <Caption
           lines={['«Доча, тут всё', 'нормально?»']}
           from={96}
-          dur={104}
+          dur={80}
           align="top"
           scrim={false}
           dark
@@ -213,8 +223,8 @@ export const ReelShowMom: React.FC = () => (
       </Scene>
     </Sequence>
 
-    <Sequence from={210} durationInFrames={190}>
-      <Scene from={0} dur={190}>
+    <Sequence from={182} durationInFrames={208}>
+      <Scene from={0} dur={208}>
         <MePhone delay={4}>
           <ExplainCard
             delay={16}
@@ -238,8 +248,8 @@ export const ReelShowMom: React.FC = () => (
       </Scene>
     </Sequence>
 
-    <Sequence from={400} durationInFrames={130}>
-      <Scene from={0} dur={130}>
+    <Sequence from={390} durationInFrames={205}>
+      <Scene from={0} dur={205}>
         <TgChat>
           <Bubble side="out" delay={10} time="10:31">
             мам, всё ок. сахар чуть выше нормы — скорее всего потому что не натощак сдавала.
@@ -252,7 +262,7 @@ export const ReelShowMom: React.FC = () => (
       </Scene>
     </Sequence>
 
-    <Sequence from={530} durationInFrames={90}>
+    <Sequence from={595} durationInFrames={90}>
       <EndCard from={0} dur={90} tagline={['Родители не гуглят.', 'Они звонят тебе']} />
     </Sequence>
   </AbsoluteFill>
