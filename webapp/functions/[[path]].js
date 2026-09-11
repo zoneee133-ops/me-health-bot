@@ -62,6 +62,7 @@ export async function onRequest(context) {
     if (url.pathname === "/api/queue" && request.method === "POST") return json(await apiQueuePush(request, env), 200, cors);
     if (url.pathname === "/api/channel-post" && request.method === "POST") return json(await apiChannelPost(request, env), 200, cors);
     if (url.pathname === "/api/queue" && request.method === "GET") return json(await apiQueueList(request, url, env), 200, cors);
+    if (url.pathname === "/api/queue-decide" && request.method === "POST") return json(await apiQueueDecide(request, env), 200, cors);
     if (url.pathname === "/api/health" && request.method === "POST") {
       // health-check LLM-цепочки. Только с админ-ключом в заголовке, без переопределения провайдера/модели/system.
       if (!env.SETUP_SECRET || !timingSafeEqual(request.headers.get("X-Setup-Key") || "", env.SETUP_SECRET)) throw httpErr(401, "unauthorized");
@@ -897,6 +898,33 @@ async function apiQueueList(request, url, env) {
   const stmt = kind ? env.DB.prepare(sql).bind(status, kind, limit) : env.DB.prepare(sql).bind(status, limit);
   const rows = await stmt.all().catch(() => ({ results: [] }));
   return { items: (rows.results || []).map((r) => ({ ...r, payload: safeParse(r.payload) })) };
+}
+
+async function apiQueueDecide(request, env) {
+  if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
+  const body = await readJson(request);
+  const id = String(body.id || "");
+  const verdict = String(body.verdict || "");
+  if (!id || !["approved", "rejected"].includes(verdict)) throw httpErr(400, "bad id/verdict");
+  await ensureQueue(env);
+
+  // используется автоматическим QA-агентом: тот же лимит REEL_DAILY_CAP, что и в apiQueuePush
+  if (verdict === "approved") {
+    const row = await env.DB.prepare("SELECT kind FROM queue WHERE id=? AND status='pending'").bind(id).first().catch(() => null);
+    if (row && row.kind === "reel") {
+      const dayStart = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime();
+      const today = await env.DB.prepare(
+        "SELECT COUNT(*) AS c FROM queue WHERE kind='reel' AND status='approved' AND decided_at >= ?"
+      ).bind(dayStart).first().catch(() => ({ c: 0 }));
+      if ((today && today.c || 0) >= REEL_DAILY_CAP) throw httpErr(429, "daily reel cap reached");
+    }
+  }
+
+  await env.DB.prepare("ALTER TABLE queue ADD COLUMN reason TEXT").run().catch(() => {});
+  const res = await env.DB.prepare("UPDATE queue SET status=?, decided_at=?, reason=? WHERE id=? AND status='pending'")
+    .bind(verdict, Date.now(), String(body.reason || "").slice(0, 1000) || null, id).run().catch(() => null);
+  const changed = res && res.meta && res.meta.changes;
+  return { ok: true, changed: !!changed };
 }
 
 async function handleQueueCallback(env, cq) {
