@@ -814,6 +814,7 @@ const QUEUE_KINDS = {
   feedback: "💬 Фидбек",
 };
 const QUEUE_MAX_PENDING = 100;
+const REEL_DAILY_CAP = 2;
 
 function isAdmin(env, uid) {
   return !!env.ADMIN_ID && String(env.ADMIN_ID) === String(uid);
@@ -858,6 +859,21 @@ async function apiQueuePush(request, env) {
   };
   await env.DB.prepare("INSERT INTO queue (id, kind, title, body, payload, status, created_at) VALUES (?,?,?,?,?, 'pending', ?)")
     .bind(row.id, row.kind, row.title, row.body, row.payload, Date.now()).run();
+
+  // рилсы: до REEL_DAILY_CAP штук в сутки авто-одобряются без карточки Роберту —
+  // сверх лимита падают в обычную ручную очередь на одобрение.
+  // ВАЖНО: это НЕ техническая QA-проверка звука/картинки — тот гейт пока не подключён
+  // сюда (нужен отдельный секрет для облачного QA-агента, решение за Робертом).
+  if (kind === "reel") {
+    const dayStart = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime();
+    const today = await env.DB.prepare(
+      "SELECT COUNT(*) AS c FROM queue WHERE kind='reel' AND status='approved' AND decided_at >= ?"
+    ).bind(dayStart).first().catch(() => ({ c: 0 }));
+    if ((today && today.c || 0) < REEL_DAILY_CAP) {
+      await env.DB.prepare("UPDATE queue SET status='approved', decided_at=? WHERE id=?").bind(Date.now(), row.id).run();
+      return { ok: true, id: row.id, auto_approved: true };
+    }
+  }
 
   // ролик на одобрение: сначала само видео, потом карточка с кнопками
   let vurl = null;
