@@ -48,17 +48,17 @@ jobs:
             fi
 
             tmp="/tmp/$id.mp4"
-            if ! curl -sf -o "$tmp" "$vurl"; then
+            if ! curl -sf -o "$tmp" "$vurl" </dev/null; then
               echo "- $id: video failed to download, skipped (status unchanged)" >> "$LOG"
               continue
             fi
 
-            probe=$(ffprobe -nostdin -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of json "$tmp" 2>/dev/null)
+            probe=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of json "$tmp" </dev/null 2>/dev/null)
             width=$(echo "$probe" | jq -r '.streams[0].width // 0' 2>/dev/null); [[ "$width" =~ ^[0-9]+$ ]] || width=0
             height=$(echo "$probe" | jq -r '.streams[0].height // 0' 2>/dev/null); [[ "$height" =~ ^[0-9]+$ ]] || height=0
             duration=$(echo "$probe" | jq -r '.format.duration // 0' 2>/dev/null | cut -d. -f1); [[ "$duration" =~ ^[0-9]+$ ]] || duration=0
-            has_audio=$(ffprobe -nostdin -v error -select_streams a -show_entries stream=index -of csv=p=0 "$tmp" 2>/dev/null)
-            maxvol=$(ffmpeg -nostdin -i "$tmp" -af volumedetect -f null - 2>&1 | grep -oP 'max_volume:\s*-?\K[0-9.]+' | head -1)
+            has_audio=$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$tmp" </dev/null 2>/dev/null)
+            maxvol=$(ffmpeg -nostdin -i "$tmp" -af volumedetect -f null - </dev/null 2>&1 | grep -oP 'max_volume:\s*-?\K[0-9.]+' | head -1)
             [[ "$maxvol" =~ ^[0-9.]+$ ]] || maxvol=""
 
             reasons=""
