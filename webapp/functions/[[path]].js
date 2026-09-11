@@ -557,11 +557,13 @@ async function handleWebhook(request, env) {
     }
     if (text.startsWith("/start")) {
       const channel = env.CHANNEL_LINK || "https://t.me/me_zdorovie";
+      const instagram = env.INSTAGRAM_LINK || "https://instagram.com/me_abouthealth";
       await sendMessage(env, chatId,
         "👋 <b>Me</b> — помощник по здоровью.\n\nСфотографируйте анализ или рецепт — я распознаю показатели и объясню каждый простыми словами, соберу график приёма лекарств и подготовлю отчёт для врача.\n\nНажмите кнопку ниже, чтобы начать.\n\n📰 И подпишитесь на наш канал — короткие разборы: что значит «выше нормы», когда правда к врачу, как читать анализы.",
         { inline_keyboard: [
           [{ text: "🩺 Открыть Me", web_app: { url: env.WEBAPP_URL } }],
           [{ text: "📰 Подписаться на канал", url: channel }],
+          [{ text: "📷 Мы в Instagram", url: instagram }],
         ] });
     } else if (text.startsWith("/help")) {
       await sendMessage(env, chatId,
