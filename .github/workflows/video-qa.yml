@@ -19,7 +19,7 @@ jobs:
           WEBAPP_URL: ${{ secrets.WEBAPP_URL }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
         run: |
-          set -e
+          set -ex
           if [ -z "$WEBAPP_URL" ] || [ -z "$ADMIN_KEY" ]; then
             echo "WEBAPP_URL or ADMIN_KEY secret not set — skipping run." >> "$GITHUB_STEP_SUMMARY"
             exit 0
