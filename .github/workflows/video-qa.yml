@@ -31,6 +31,11 @@ jobs:
           echo "## $(date -u +%Y-%m-%dT%H:%M:%SZ) — GitHub Actions run" >> "$LOG"
 
           items=$(curl -sf -H "X-Admin-Key: $ADMIN_KEY" "$WEBAPP_URL/api/queue?status=pending&kind=reel")
+          if ! echo "$items" | jq -e '.items' >/dev/null 2>&1; then
+            echo "- queue response was not valid JSON, aborting this run" >> "$LOG"
+            cat "$LOG" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           count=$(echo "$items" | jq '.items | length')
           echo "- pending reels: $count" >> "$LOG"
 
@@ -49,16 +54,18 @@ jobs:
             fi
 
             probe=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of json "$tmp" 2>/dev/null)
-            width=$(echo "$probe" | jq -r '.streams[0].width // 0')
-            height=$(echo "$probe" | jq -r '.streams[0].height // 0')
-            duration=$(echo "$probe" | jq -r '.format.duration // 0' | cut -d. -f1)
+            width=$(echo "$probe" | jq -r '.streams[0].width // 0' 2>/dev/null); [[ "$width" =~ ^[0-9]+$ ]] || width=0
+            height=$(echo "$probe" | jq -r '.streams[0].height // 0' 2>/dev/null); [[ "$height" =~ ^[0-9]+$ ]] || height=0
+            duration=$(echo "$probe" | jq -r '.format.duration // 0' 2>/dev/null | cut -d. -f1); [[ "$duration" =~ ^[0-9]+$ ]] || duration=0
             has_audio=$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$tmp" 2>/dev/null)
             maxvol=$(ffmpeg -i "$tmp" -af volumedetect -f null - 2>&1 | grep -oP 'max_volume:\s*-?\K[0-9.]+' | head -1)
+            [[ "$maxvol" =~ ^[0-9.]+$ ]] || maxvol=""
 
             reasons=""
+            if [ "$width" -eq 0 ] || [ "$height" -eq 0 ]; then reasons="$reasons could not read video (corrupt/undownloadable);"; fi
             [ -z "$has_audio" ] && reasons="$reasons no audio track;"
             if [ -n "$maxvol" ] && awk "BEGIN{exit !($maxvol > 50)}"; then reasons="$reasons audio too quiet (max_volume -${maxvol}dB);"; fi
-            if [ "$width" -lt "$height" ]; then :; else reasons="$reasons not vertical (${width}x${height});"; fi
+            if [ "$width" -gt 0 ] && [ "$height" -gt 0 ] && [ "$width" -ge "$height" ]; then reasons="$reasons not vertical (${width}x${height});"; fi
             if [ "$duration" -lt 3 ] || [ "$duration" -gt 90 ]; then reasons="$reasons bad duration (${duration}s);"; fi
 
             rm -f "$tmp"
