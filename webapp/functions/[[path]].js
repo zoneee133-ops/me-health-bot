@@ -549,6 +549,9 @@ async function handleWebhook(request, env) {
           await sendMessage(env, chatId, "Понял. Поправлю и пришлю заново.");
           return new Response("ok");
         }
+        // нет ожидающего отклонённого ролика без причины — не проглатываем сообщение молча
+        await sendMessage(env, chatId, "Не нашёл, к какому ролику это относится (прошло больше часа с отказа, или уже есть причина). Напиши /queue, чтобы посмотреть очередь.");
+        return new Response("ok");
       } catch (e) {}
     }
     if (text.startsWith("/start")) {
