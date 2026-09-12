@@ -4,8 +4,11 @@
  * env (Pages project): binding DB (D1);
  *   secrets  BOT_TOKEN, WEBHOOK_SECRET, SETUP_SECRET, TICK_KEY,
  *            GEMINI_KEY / GROQ_KEY / OPENROUTER_KEY (хотя бы один);
+ *            FAL_KEY (опц.) — генерация рилсов через Seedance 2.5, /reel;
  *   vars     WEBAPP_URL, (опц.) GEMINI_MODEL, OPENROUTER_MODEL.
  */
+
+import { submitSeedanceJob, pollSeedanceJob, extractVideoUrl } from "./lib/seedance.js";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
@@ -43,7 +46,7 @@ export async function onRequest(context) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
-    if (url.pathname === "/webhook" && request.method === "POST") return handleWebhook(request, env);
+    if (url.pathname === "/webhook" && request.method === "POST") return handleWebhook(request, env, context);
     if (url.pathname === "/setup" && request.method === "POST") return handleSetup(request, env);
     if (url.pathname === "/api/llm" && request.method === "POST") return json(await apiLlm(request, env), 200, cors);
     if (url.pathname === "/api/save" && request.method === "POST") return json(await apiSave(request, env, context), 200, cors);
@@ -500,7 +503,7 @@ async function apiTick(url, env, ctx) {
 
 /* ---------------- Telegram bot ---------------- */
 
-async function handleWebhook(request, env) {
+async function handleWebhook(request, env, ctx) {
   if (!env.WEBHOOK_SECRET ||
       !timingSafeEqual(request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "", env.WEBHOOK_SECRET)) {
     return new Response("forbidden", { status: 403 });
@@ -582,6 +585,16 @@ async function handleWebhook(request, env) {
       await sendMessage(env, chatId, `Ваш Telegram ID: <code>${fromId}</code>`);
     } else if (text.startsWith("/queue") && isSelf && isAdmin(env, fromId)) {
       await showQueue(env, fromId);
+    } else if (text.startsWith("/reel") && isSelf && isAdmin(env, fromId)) {
+      const prompt = text.replace(/^\/reel(@\w+)?\s*/, "").trim();
+      if (!prompt) {
+        await sendMessage(env, chatId, "Использование: <code>/reel &lt;описание сцены&gt;</code>\n\nНапример:\n<code>/reel женщина держит телефон с приложением Me крупным планом, тёплый свет, вертикальное видео</code>");
+      } else if (!env.FAL_KEY) {
+        await sendMessage(env, chatId, "Seedance не подключён: не задан секрет FAL_KEY (Pages → Settings → Variables and secrets).");
+      } else {
+        await sendMessage(env, chatId, "🎬 Генерирую видео через Seedance 2.5 — обычно 1-3 минуты, пришлю сюда на одобрение.");
+        ctx.waitUntil(generateSeedanceReel(env, fromId, prompt));
+      }
     } else if (text.startsWith("/stats") && isSelf && isAdmin(env, fromId)) {
       await sendStats(env, chatId);
     } else if (text === "/restart" && isSelf) {
@@ -886,6 +899,32 @@ async function apiQueuePush(request, env) {
   }
   await sendMessage(env, env.ADMIN_ID, queueCard(row), queueButtons(row.id));
   return { ok: true, id: row.id };
+}
+
+/* Seedance 2.5 (/reel): генерирует ролик и кладёт его в тот же pipeline
+   очереди, которым уже пользуются контент-агенты (apiQueuePush) — так
+   ролик проходит через тот же дневной лимит REEL_DAILY_CAP и то же
+   одобрение кнопками, что и остальные рилсы. */
+async function generateSeedanceReel(env, adminId, prompt) {
+  try {
+    const job = await submitSeedanceJob(env, { mode: "text", prompt, aspectRatio: "9:16", resolution: "720p", duration: 8 });
+    const output = await pollSeedanceJob(job, { falKey: env.FAL_KEY, intervalMs: 8000, timeoutMs: 4 * 60 * 1000 });
+    const videoUrl = extractVideoUrl(output);
+
+    const pushReq = new Request("https://internal/api/queue", {
+      method: "POST",
+      headers: { "X-Admin-Key": env.ADMIN_KEY || "", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "reel",
+        title: prompt.slice(0, 200),
+        body: `Сгенерировано Seedance 2.5.\n\nПромпт: ${prompt}`,
+        payload: { video_url: videoUrl, source: "seedance-2.5", prompt },
+      }),
+    });
+    await apiQueuePush(pushReq, env);
+  } catch (e) {
+    await sendMessage(env, adminId, `⚠️ Seedance: не получилось сгенерировать видео.\n\n${plain(String((e && e.message) || e), 500)}`);
+  }
 }
 
 async function apiQueueList(request, url, env) {
