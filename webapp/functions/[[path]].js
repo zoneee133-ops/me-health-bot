@@ -52,6 +52,8 @@ export async function onRequest(context) {
     if (url.pathname === "/api/meds" && request.method === "POST") return json(await apiMedsSave(request, env), 200, cors);
     if (url.pathname === "/api/meds" && request.method === "GET") return json(await apiMedsList(request, env), 200, cors);
     if (url.pathname === "/api/reminder" && request.method === "POST") return json(await apiReminderSave(request, env), 200, cors);
+    if (url.pathname === "/api/visit" && request.method === "POST") return json(await apiVisitSave(request, env), 200, cors);
+    if (url.pathname === "/api/visit" && request.method === "GET") return json(await apiVisitList(request, env), 200, cors);
     if (url.pathname === "/api/tick") return json(await apiTick(url, env, context), 200, cors);
     if (url.pathname === "/api/erase" && request.method === "POST") return json(await apiErase(request, env), 200, cors);
     if (url.pathname === "/api/inbox" && request.method === "GET") return json(await apiInbox(request, url, env), 200, cors);
@@ -362,17 +364,20 @@ async function apiMedsSave(request, env) {
   const body = await readJson(request);
   const user = await authUser(request, env, body);
   const tz = Number.isFinite(body.tzOffset) ? Math.max(-720, Math.min(840, Math.trunc(body.tzOffset))) : 180;
+  await env.DB.prepare("ALTER TABLE meds ADD COLUMN taken TEXT").run().catch(() => {});
+  await env.DB.prepare("ALTER TABLE meds ADD COLUMN as_needed INTEGER").run().catch(() => {});
   await env.DB.prepare("DELETE FROM meds WHERE user_id=?").bind(user.id).run();
   const today = new Date().toISOString().slice(0, 10);
   const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
   for (const m of (Array.isArray(body.meds) ? body.meds : []).slice(0, 30)) {
     const stages = normStages(m);
     await env.DB.prepare(
-      "INSERT INTO meds (id, user_id, name, dosage, times, start_date, end_date, active, created_at, tz_offset, stages, purpose) VALUES (?,?,?,?,?,?,?,1,?,?,?,?)"
+      "INSERT INTO meds (id, user_id, name, dosage, times, start_date, end_date, active, created_at, tz_offset, stages, purpose, taken, as_needed) VALUES (?,?,?,?,?,?,?,1,?,?,?,?,?,?)"
     ).bind(
       crypto.randomUUID(), user.id, String(m.name || "").slice(0, 120), String(m.dosage || "").slice(0, 80),
       JSON.stringify(stages[0] ? stages[0].times : []), isDate(m.startDate) ? m.startDate : today, isDate(m.endDate) ? m.endDate : null,
-      Date.now(), tz, JSON.stringify(stages), String(m.purpose || "").slice(0, 200)
+      Date.now(), tz, JSON.stringify(stages), String(m.purpose || "").slice(0, 200),
+      JSON.stringify(m.taken && typeof m.taken === "object" ? m.taken : {}), m.asNeeded ? 1 : 0
     ).run();
   }
   return { ok: true };
@@ -380,14 +385,56 @@ async function apiMedsSave(request, env) {
 
 async function apiMedsList(request, env) {
   const user = await authUser(request, env, null);
+  await env.DB.prepare("ALTER TABLE meds ADD COLUMN taken TEXT").run().catch(() => {});
+  await env.DB.prepare("ALTER TABLE meds ADD COLUMN as_needed INTEGER").run().catch(() => {});
   const { results } = await env.DB.prepare(
-    "SELECT id, name, dosage, times, start_date, end_date, stages, purpose FROM meds WHERE user_id=? AND active=1 ORDER BY created_at ASC"
+    "SELECT id, name, dosage, times, start_date, end_date, stages, purpose, taken, as_needed FROM meds WHERE user_id=? AND active=1 ORDER BY created_at ASC"
   ).bind(user.id).all();
   return {
     items: (results || []).map((r) => ({
       id: r.id, name: r.name, dosage: r.dosage, times: safeParse(r.times) || [],
       startDate: r.start_date, endDate: r.end_date, purpose: r.purpose || "",
-      stages: safeParse(r.stages) || null,
+      stages: safeParse(r.stages) || null, taken: safeParse(r.taken) || {},
+      asNeeded: !!r.as_needed,
+    })),
+  };
+}
+
+async function ensureVisits(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS visits (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, date TEXT, doctor_type TEXT, notes TEXT, medication TEXT, labs TEXT, follow_up TEXT, created_at INTEGER NOT NULL)"
+  ).run().catch(() => {});
+}
+
+async function apiVisitSave(request, env) {
+  const body = await readJson(request);
+  const user = await authUser(request, env, body);
+  await ensureVisits(env);
+  const id = "v" + crypto.randomUUID().slice(0, 8);
+  await env.DB.prepare(
+    "INSERT INTO visits (id, user_id, date, doctor_type, notes, medication, labs, follow_up, created_at) VALUES (?,?,?,?,?,?,?,?,?)"
+  ).bind(
+    id, user.id, String(body.date || "").slice(0, 40), String(body.doctorType || "Врач").slice(0, 80),
+    JSON.stringify(Array.isArray(body.notes) ? body.notes.slice(0, 20) : []),
+    body.medication ? String(body.medication).slice(0, 500) : null,
+    body.labs ? String(body.labs).slice(0, 500) : null,
+    body.followUp ? String(body.followUp).slice(0, 200) : null,
+    Date.now()
+  ).run();
+  return { ok: true, id };
+}
+
+async function apiVisitList(request, env) {
+  const user = await authUser(request, env, null);
+  await ensureVisits(env);
+  const { results } = await env.DB.prepare(
+    "SELECT id, date, doctor_type, notes, medication, labs, follow_up FROM visits WHERE user_id=? ORDER BY created_at ASC"
+  ).bind(user.id).all();
+  return {
+    items: (results || []).map((r) => ({
+      id: r.id, date: r.date, doctorType: r.doctor_type,
+      notes: safeParse(r.notes) || [], medication: r.medication || null,
+      labs: r.labs || null, followUp: r.follow_up || null,
     })),
   };
 }
@@ -418,9 +465,11 @@ async function apiErase(request, env) {
 async function eraseUser(env, uid) {
   const meds = await env.DB.prepare("SELECT id FROM meds WHERE user_id=?").bind(uid).all();
   for (const row of meds.results || []) await env.DB.prepare("DELETE FROM med_log WHERE med_id=?").bind(row.id).run().catch(() => {});
+  await ensureVisits(env); // таблица должна существовать до batch — иначе DELETE FROM visits уронит весь батч и ничего не сотрётся
   await env.DB.batch([
     env.DB.prepare("DELETE FROM analyses WHERE user_id=?").bind(uid),
     env.DB.prepare("DELETE FROM meds WHERE user_id=?").bind(uid),
+    env.DB.prepare("DELETE FROM visits WHERE user_id=?").bind(uid),
     env.DB.prepare("DELETE FROM reminders WHERE user_id=?").bind(uid),
     env.DB.prepare("DELETE FROM rl WHERE user_id=?").bind(String(uid)),
     env.DB.prepare("DELETE FROM inbox WHERE user_id=?").bind(String(uid)),

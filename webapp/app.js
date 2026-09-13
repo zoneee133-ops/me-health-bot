@@ -561,7 +561,14 @@ if (eraseAllBtn) eraseAllBtn.addEventListener('click', function(){
   if (no) no.addEventListener('click', closeSheet);
   if (yes) yes.addEventListener('click', async function(){
     yes.disabled = true; yes.textContent = 'Удаляю…';
-    try { if (window.__meErase) await window.__meErase(); } catch(e){}
+    try {
+      if (window.__meErase) await window.__meErase();
+    } catch(e){
+      // сервер не подтвердил удаление — не притворяемся, что стёрли, если это не так
+      yes.disabled = false; yes.textContent = 'Стереть';
+      if (typeof showToast === 'function') showToast('Не получилось удалить — проверьте связь и попробуйте ещё раз');
+      return;
+    }
     try { ['me_ob_done','me_showInjury','me_pd_consent','me_inbox_tries'].forEach(function(k){ localStorage.removeItem(k); }); } catch(e){}
     state.bloodTests = []; state.scans = []; state.meds = []; state.visits = [];
     closeSheet();
@@ -858,7 +865,7 @@ function addBloodTest(parsed){
   const bt = {
     id:'bt'+Math.random().toString(36).slice(2,8),
     serverId: parsed._serverId || null,
-    date: (parsed.date && parsed.date !== 'СЕГОДНЯ') ? parsed.date : '18 АВГ 2026',
+    date: (parsed.date && parsed.date !== 'СЕГОДНЯ') ? parsed.date : (ruDate(todayISO()).toUpperCase() + ' ' + new Date().getFullYear()),
     markersTotal: (parsed.markers||[]).length,
     changed: needsAttention.length,
     outOfRange: needsAttention.length,
@@ -1432,7 +1439,7 @@ document.getElementById('qNextBtn').addEventListener('click', async () => {
 function saveVisit(v){
   const record = {
     id: 'v' + Math.random().toString(36).slice(2, 8),
-    date: '18 АВГ 2026',
+    date: ruDate(todayISO()).toUpperCase() + ' ' + new Date().getFullYear(),
     doctorType: v.doctorType || 'Врач',
     notes: Array.isArray(v.notes) ? v.notes : (v.notes ? [v.notes] : []),
     medication: v.medication || null,
@@ -1440,6 +1447,7 @@ function saveVisit(v){
     followUp: v.followUp || null
   };
   state.visits.push(record);
+  if (window.__meSaveVisit) window.__meSaveVisit(record);
 
   // напоминание за неделю до следующего визита
   var fd = Number(v.followUpDays);
@@ -1820,7 +1828,12 @@ if (manualMedDone) {
   });
 }
 
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+function todayISO(){
+  // локальная календарная дата, не UTC — иначе для часовых поясов восточнее UTC
+  // "сегодня" ещё несколько часов после полуночи считалось бы "вчера"
+  var d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,10);
+}
 function dayNum(s){ return Math.floor(Date.parse(s + 'T00:00:00Z') / 86400000); }
 function isoPlusDays(s, n){ return new Date((dayNum(s) + n) * 86400000).toISOString().slice(0,10); }
 function ruDate(s){
@@ -2236,6 +2249,7 @@ function renderMeds(){
       if (chk) chk.textContent = willBeTaken ? '✓' : '';
       if (typeof __haptic === 'function') __haptic('light');
       if (typeof refreshStatusCards === 'function') refreshStatusCards();
+      if (typeof window.__meSaveMeds === 'function') window.__meSaveMeds();
 
       var doses = todayDoses();
       if (willBeTaken && doses.length && doses.every(function(d){ return d.taken; })){
@@ -2687,27 +2701,42 @@ async function processInbox(opts){
   /* ---- persistence + deep link ---- */
   window.__meSave = LIVE ? function(analysis, source){
     apiFetch('/api/save', { method:'POST', body:{ analysis: analysis, source: source || 'upload' } })
-      .then(function(j){ if (j && j.id && state.bloodTests.length) state.bloodTests[state.bloodTests.length-1].serverId = j.id; })
+      .then(function(j){
+        if (!j || !j.id) return;
+        var list = source === 'scan' ? state.scans : state.bloodTests;
+        if (list && list.length) list[list.length - 1].serverId = j.id;
+      })
       .catch(function(e){ console.warn('save', e); });
   } : null;
 
-  var _medsSaving = false;
+  var _medsSaving = false, _medsSaveAgain = false;
   window.__meSaveMeds = LIVE ? function(){
-    if (_medsSaving) return; _medsSaving = true;
+    if (_medsSaving) { _medsSaveAgain = true; return; }
+    _medsSaving = true;
     var payload = (state.meds || []).map(function(m){
       return {
         name:m.name, dosage:m.dosage, purpose:m.purpose || '', asNeeded:!!m.asNeeded,
-        startDate:m.startDate || null, endDate:m.endDate || null,
+        startDate:m.startDate || null, endDate:m.endDate || null, taken:m.taken || {},
         stages:(m.stages||[]).map(function(s){ return { dose:s.dose, perDay:s.perDay, times:s.times, durationDays:s.durationDays, durationText:s.durationText||'', estimated:!!s.estimated, estWhy:s.estWhy||'', note:s.note||'' }; })
       };
     });
     apiFetch('/api/meds', { method:'POST', body:{ meds:payload, tzOffset: -new Date().getTimezoneOffset() } })
-      .catch(function(e){ console.warn('meds save', e); }).finally(function(){ _medsSaving = false; });
+      .catch(function(e){ console.warn('meds save', e); }).finally(function(){
+        _medsSaving = false;
+        // пока предыдущий save летел, состояние успело измениться ещё раз — досохраняем его
+        if (_medsSaveAgain){ _medsSaveAgain = false; window.__meSaveMeds(); }
+      });
   } : null;
 
   window.__meSaveReminder = LIVE ? function(dueDate, text){
     apiFetch('/api/reminder', { method:'POST', body:{ dueDate:dueDate, text:text, kind:'visit', leadDays:7, tzOffset: -new Date().getTimezoneOffset() } })
       .catch(function(e){ console.warn('reminder save', e); });
+  } : null;
+
+  window.__meSaveVisit = LIVE ? function(v){
+    apiFetch('/api/visit', { method:'POST', body:{ date:v.date, doctorType:v.doctorType, notes:v.notes, medication:v.medication, labs:v.labs, followUp:v.followUp } })
+      .then(function(j){ if (j && j.id) v.serverId = j.id; })
+      .catch(function(e){ console.warn('visit save', e); });
   } : null;
 
   window.__meErase = LIVE ? function(){ return apiFetch('/api/erase', { method:'POST', body:{} }); } : null;
@@ -2744,12 +2773,40 @@ async function processInbox(opts){
 
     apiFetch('/api/meds')
       .then(function(j){
-        var items = (j.items || []).map(function(it){
-          return { name:it.name, purpose:it.purpose, asNeeded:it.asNeeded, stages:it.stages, suggested_times:it.times, startDate:it.startDate, endDate:it.endDate };
+        // ранее сохранённые лекарства восстанавливаем как есть (включая taken) —
+        // без повторной склейки дублей/досбора длительностей: это уже финальные записи,
+        // не свежераспознанный рецепт (для того есть отдельный путь через ingestMeds)
+        (j.items || []).forEach(function(it){
+          state.meds.push({
+            id: 'm' + Math.random().toString(36).slice(2, 8),
+            name: it.name || 'Без названия',
+            purpose: it.purpose || '',
+            asNeeded: !!it.asNeeded,
+            dosage: (it.stages && it.stages[0] && it.stages[0].dose) || '',
+            startDate: it.startDate || todayISO(),
+            endDate: it.endDate || null,
+            stages: (Array.isArray(it.stages) && it.stages.length) ? it.stages : medStages(it),
+            taken: it.taken || {}
+          });
         });
-        if (items.length && typeof ingestMeds === 'function') ingestMeds(items).catch(function(e){ console.warn('ingest meds', e); });
+        if ((j.items || []).length){ renderMeds(); renderTimeline(); refreshHealthSubtitles(); if (typeof refreshStatusCards === 'function') refreshStatusCards(); }
       })
-      .catch(function(e){ console.warn('load meds', e); })
+      .catch(function(e){ console.warn('load meds', e); });
+
+    apiFetch('/api/visit')
+      .then(function(j){
+        (j.items || []).forEach(function(it){
+          state.visits.push({
+            id: 'v' + Math.random().toString(36).slice(2, 8),
+            serverId: it.id,
+            date: it.date || '', doctorType: it.doctorType || 'Врач',
+            notes: Array.isArray(it.notes) ? it.notes : [],
+            medication: it.medication || null, labs: it.labs || null, followUp: it.followUp || null
+          });
+        });
+        if ((j.items || []).length){ renderTimeline(); refreshHealthSubtitles(); if (typeof renderVisitsList === 'function') renderVisitsList(); }
+      })
+      .catch(function(e){ console.warn('load visits', e); })
       .finally(function(){
         // ponytail: 800мс задержка вместо цепочки промисов — ждём, пока state прогрузится.
         // не дёргаем во время онбординга (модалка согласия перекрыла бы его).
