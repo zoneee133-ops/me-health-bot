@@ -549,6 +549,16 @@
   .dose-row.done .dose-name{ color:var(--ink-3); }
   .dose-row.done .dose-name::after{ width:100%; }
   .dose-row.done .dose-check{ background:var(--accent); border-color:var(--accent); transform:scale(1.08); }
+  .med-all-done{ display:flex; align-items:center; gap:10px; background:var(--accent-soft); border-radius:var(--radius-m); padding:12px 14px; margin-bottom:10px; opacity:0; transform:translateY(-6px) scale(0.98); animation:allDoneIn 0.45s cubic-bezier(.34,1.56,.64,1) forwards; }
+  .med-all-done .adn-badge{ position:relative; width:30px; height:30px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0; animation:allDoneBadge 0.55s cubic-bezier(.34,1.56,.64,1) 0.1s both; }
+  .med-all-done .adn-badge::before, .med-all-done .adn-badge::after{ content:""; position:absolute; inset:-4px; border-radius:50%; border:1.5px solid var(--accent); opacity:0; animation:allDonePulse 1s ease-out both; }
+  .med-all-done .adn-badge::after{ animation-delay:0.35s; }
+  .med-all-done .adn-check{ stroke-dasharray:20; stroke-dashoffset:20; animation:allDoneDraw 0.4s ease 0.35s forwards; }
+  .med-all-done .adn-text{ font-size:13.5px; font-weight:600; color:var(--accent); animation:allDoneIn 0.4s ease 0.15s both; }
+  @keyframes allDoneIn{ to{ opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes allDoneBadge{ 0%{ transform:scale(0) rotate(-25deg); } 60%{ transform:scale(1.15) rotate(6deg); } 100%{ transform:scale(1) rotate(0); } }
+  @keyframes allDonePulse{ 0%{ opacity:0.5; transform:scale(1); } 100%{ opacity:0; transform:scale(1.9); } }
+  @keyframes allDoneDraw{ to{ stroke-dashoffset:0; } }
 
   .med-card{ background:var(--surface); border-radius:var(--radius-m); box-shadow:var(--shadow-soft); padding:13px 15px; margin-bottom:10px; position:relative; }
   .med-card .mc-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }

@@ -2209,6 +2209,23 @@ function renderMeds(){
       if (chk) chk.textContent = now ? '✓' : '';
       if (typeof __haptic === 'function') __haptic('light');
       if (typeof refreshStatusCards === 'function') refreshStatusCards();
+
+      var allRows = medScheduleList.querySelectorAll('.dose-row');
+      var allDone = allRows.length > 0 && Array.prototype.every.call(allRows, function(r){ return r.classList.contains('done'); });
+      var banner = document.getElementById('medAllDoneBanner');
+      if (allDone && !banner){
+        var todayBlock = medScheduleList.querySelector('.med-today');
+        if (todayBlock){
+          banner = document.createElement('div');
+          banner.id = 'medAllDoneBanner';
+          banner.className = 'med-all-done';
+          banner.innerHTML = '<span class="adn-badge"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path class="adn-check" d="M5 13l4 4L19 7"/></svg></span><span class="adn-text">Всё принято на сегодня</span>';
+          todayBlock.parentNode.insertBefore(banner, todayBlock);
+          try { var _tg = window.Telegram && window.Telegram.WebApp; if (_tg && _tg.HapticFeedback) _tg.HapticFeedback.notificationOccurred('success'); } catch(e){}
+        }
+      } else if (!allDone && banner){
+        banner.remove();
+      }
     });
   });
   medScheduleList.querySelectorAll('[data-explain]').forEach(function(el){
