@@ -57,3 +57,11 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-13T12:32:41Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-13T12:50:38Z — Claude Code cloud session run
+- `WEBAPP_URL` and `ADMIN_KEY` were provided (as literal values in the task prompt, not as environment variables — `$WEBAPP_URL`/`$ADMIN_KEY` are unset in this container).
+- Outbound HTTPS from this session goes through a policy-enforcing egress proxy. The CONNECT tunnel to `me-webapp.pages.dev:443` was rejected with a 403 policy denial (`gateway answered 403 to CONNECT`), confirmed via the proxy status endpoint. This is an organization egress-policy block, not a transient network error, and per this environment's own guidance such denials must be reported rather than retried or routed around.
+- Could not reach `GET /api/queue`, so no reel list was fetched, no videos were downloaded, no ffprobe/ffmpeg checks ran, and no `POST /api/queue-decide` calls were made. The bot's queue was not touched by this run.
+- The actual working QA gate for this project is the GitHub Actions workflow (see the runs above, most recently at 12:32:41Z showing 0 pending reels) — that workflow apparently runs in an environment whose egress policy allows `me-webapp.pages.dev`, unlike this Claude Code cloud session.
+- **Recommendation:** keep running this QA gate via the existing GitHub Actions workflow rather than a Claude Code cloud/scheduled session, since this session's network policy does not allow egress to the webapp host. If a Claude Code session must run this check, the egress allowlist for the session/environment would need `me-webapp.pages.dev` added.
+- No secret values were written to this log or to any commit.
