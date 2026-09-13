@@ -17,6 +17,7 @@ const MAX_IMAGES = 10;
 const MAX_IMG_B64 = 3 * 1024 * 1024;
 const RL_MAX = 40;                  // запросов /api/llm на пользователя в час
 const RL_WINDOW = 3600 * 1000;
+const MAILKEY_TTL = 180 * 24 * 3600 * 1000; // 180 дней — токен для Apps Script протухает, /mail выдаёт новый
 
 const SYSTEM_MED =
   "Ты — Me, медицинский ИИ-помощник. Задача — разбираться в информации ПОЛНОСТЬЮ и объяснять человеку без медицинского образования максимально простыми словами.\n" +
@@ -35,7 +36,10 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const cors = {
-    "Access-Control-Allow-Origin": "*",
+    // сужено до собственного домена — initData подписан HMAC и не читается сторонним
+    // JS, но зачем облегчать произвольному сайту делать запросы от лица открытого
+    // Mini App (defense-in-depth, не единственная линия защиты)
+    "Access-Control-Allow-Origin": env.WEBAPP_URL || "*",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-Init-Data",
     "Access-Control-Max-Age": "86400",
@@ -68,6 +72,8 @@ export async function onRequest(context) {
     if (url.pathname === "/api/health" && request.method === "POST") {
       // health-check LLM-цепочки. Только с админ-ключом в заголовке, без переопределения провайдера/модели/system.
       if (!env.SETUP_SECRET || !timingSafeEqual(request.headers.get("X-Setup-Key") || "", env.SETUP_SECRET)) throw httpErr(401, "unauthorized");
+      // даже с валидным секретом не даём эндпоинту стать бесплатным безлимитным доступом к LLM-провайдерам
+      await rateLimit(env, "health-check", { key: "global", max: 100 });
       const b = await readJson(request);
       return json(await llmRaw(b.content || "ответь одним словом: ок", Math.min(Number(b.maxTokens) || 400, 8000), env, b.system === "" ? "" : undefined), 200, cors);
     }
@@ -823,8 +829,9 @@ async function apiInboxMail(request, env) {
   const token = String(body.key || body.token || "");
   if (!/^mk_[a-f0-9]{20,}$/.test(token)) throw httpErr(401, "bad key");
   await ensureMailkeyTable(env);
-  const row = await env.DB.prepare("SELECT user_id FROM mailkey WHERE token=?").bind(token).first().catch(() => null);
+  const row = await env.DB.prepare("SELECT user_id, created_at FROM mailkey WHERE token=?").bind(token).first().catch(() => null);
   if (!row) throw httpErr(401, "unknown key");
+  if (Date.now() - Number(row.created_at) > MAILKEY_TTL) throw httpErr(401, "key expired, run /mail again");
   const uid = String(row.user_id);
 
   // подтверждение пересылки Яндекс/Gmail — просто отдаём код пользователю в бот

@@ -2478,7 +2478,7 @@ function showToast(msg){
   toastTimer = setTimeout(() => {
     toast.classList.remove('show');
     toastTimer = null;
-  }, 1000);
+  }, 4000);
 }
 // ensure toast is hidden on load
 (function(){ const t = document.getElementById('toast'); if (t) t.classList.remove('show'); })();
