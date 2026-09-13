@@ -5,12 +5,12 @@
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      fetch(`${env.TICK_URL}?key=${encodeURIComponent(env.TICK_KEY)}`).catch(() => {})
+      fetch(env.TICK_URL, { headers: { "X-Tick-Key": env.TICK_KEY } }).catch(() => {})
     );
   },
   // ручной вызов для проверки: просто открой URL воркера (если есть) — вернёт ok
   async fetch(req, env) {
-    const r = await fetch(`${env.TICK_URL}?key=${encodeURIComponent(env.TICK_KEY)}`);
+    const r = await fetch(env.TICK_URL, { headers: { "X-Tick-Key": env.TICK_KEY } });
     return new Response(await r.text(), { headers: { "content-type": "application/json" } });
   },
 };

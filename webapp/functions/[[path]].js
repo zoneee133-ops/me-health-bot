@@ -54,7 +54,7 @@ export async function onRequest(context) {
     if (url.pathname === "/api/reminder" && request.method === "POST") return json(await apiReminderSave(request, env), 200, cors);
     if (url.pathname === "/api/visit" && request.method === "POST") return json(await apiVisitSave(request, env), 200, cors);
     if (url.pathname === "/api/visit" && request.method === "GET") return json(await apiVisitList(request, env), 200, cors);
-    if (url.pathname === "/api/tick") return json(await apiTick(url, env, context), 200, cors);
+    if (url.pathname === "/api/tick") return json(await apiTick(request, env, context), 200, cors);
     if (url.pathname === "/api/erase" && request.method === "POST") return json(await apiErase(request, env), 200, cors);
     if (url.pathname === "/api/inbox" && request.method === "GET") return json(await apiInbox(request, url, env), 200, cors);
     if (url.pathname === "/api/inbox" && request.method === "POST") return json(await apiInboxConsume(request, env), 200, cors);
@@ -139,17 +139,19 @@ async function authUser(request, env, body) {
 
 /* ---------------- rate limit (D1) ---------------- */
 
-async function rateLimit(env, userId) {
+async function rateLimit(env, userId, opts) {
+  const max = (opts && opts.max) || RL_MAX;
+  const key = (opts && opts.key) ? String(userId) + ":" + opts.key : String(userId);
   try {
     const now = Date.now();
-    const row = await env.DB.prepare("SELECT ts, n FROM rl WHERE user_id=?").bind(String(userId)).first();
+    const row = await env.DB.prepare("SELECT ts, n FROM rl WHERE user_id=?").bind(key).first();
     if (!row || now - row.ts > RL_WINDOW) {
       await env.DB.prepare("INSERT INTO rl (user_id, ts, n) VALUES (?,?,1) ON CONFLICT(user_id) DO UPDATE SET ts=?, n=1")
-        .bind(String(userId), now, now).run();
+        .bind(key, now, now).run();
       return;
     }
-    if (row.n >= RL_MAX) throw httpErr(429, "rate limit");
-    await env.DB.prepare("UPDATE rl SET n=n+1 WHERE user_id=?").bind(String(userId)).run();
+    if (row.n >= max) throw httpErr(429, "rate limit");
+    await env.DB.prepare("UPDATE rl SET n=n+1 WHERE user_id=?").bind(key).run();
   } catch (e) {
     if (e && e.status === 429) throw e;
     // таблицы нет / сбой — не блокируем работу
@@ -272,6 +274,7 @@ const MAX_ANALYSES_PER_USER = 100;
 async function apiSave(request, env, ctx) {
   const body = await readJson(request);
   const user = await authUser(request, env, body);
+  await rateLimit(env, user.id, { key: "write", max: 60 });
   const analysis = body.analysis || {};
   const blob = JSON.stringify(analysis);
   if (blob.length > MAX_ANALYSIS_JSON) throw httpErr(413, "analysis too large");
@@ -409,6 +412,7 @@ async function ensureVisits(env) {
 async function apiVisitSave(request, env) {
   const body = await readJson(request);
   const user = await authUser(request, env, body);
+  await rateLimit(env, user.id, { key: "write", max: 60 });
   await ensureVisits(env);
   const id = "v" + crypto.randomUUID().slice(0, 8);
   await env.DB.prepare(
@@ -442,6 +446,7 @@ async function apiVisitList(request, env) {
 async function apiReminderSave(request, env) {
   const body = await readJson(request);
   const user = await authUser(request, env, body);
+  await rateLimit(env, user.id, { key: "write", max: 60 });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(body.dueDate || "")) return { ok: false };
   const cnt = await env.DB.prepare("SELECT COUNT(*) n FROM reminders WHERE user_id=? AND sent=0").bind(user.id).first();
   if (cnt && cnt.n >= 50) return { ok: false };
@@ -478,8 +483,8 @@ async function eraseUser(env, uid) {
 }
 
 // cron (Worker) каждые ~15 мин
-async function apiTick(url, env, ctx) {
-  if (!env.TICK_KEY || !timingSafeEqual(url.searchParams.get("key") || "", env.TICK_KEY)) {
+async function apiTick(request, env, ctx) {
+  if (!env.TICK_KEY || !timingSafeEqual(request.headers.get("X-Tick-Key") || "", env.TICK_KEY)) {
     throw httpErr(403, "forbidden");
   }
   const now = Date.now();
@@ -703,6 +708,7 @@ const REPORT_KIND = {
 async function apiReport(request, env) {
   const body = await readJson(request);
   const user = await authUser(request, env, body);
+  await rateLimit(env, user.id, { key: "write", max: 60 });
   const k = REPORT_KIND[body.kind] || "документ";
   const detail =
     `Пользователь ${user.id}${user.first_name ? " (" + user.first_name + ")" : ""}\n` +
@@ -1200,12 +1206,21 @@ async function sendMessage(env, chatId, text, replyMarkup) {
 
 // Публикация в канал @me_zdorovie через бота (бот должен быть админом канала).
 // Только с админ-ключом. Тип: text | photo | video. media — https URL картинки/видео.
+// анти-SSRF: медиа для постинга в канал должно лежать на нашем же хостинге, не на произвольном https-адресе
+function isOwnMediaUrl(u, env) {
+  if (!/^https:\/\/[^\s]+\.(jpg|jpeg|png|mp4)(\?|$)/i.test(u)) return false;
+  try {
+    const own = new URL(env.WEBAPP_URL || "https://me-webapp.pages.dev").hostname;
+    return new URL(u).hostname === own;
+  } catch (e) { return false; }
+}
+
 async function apiChannelPost(request, env) {
   if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
   const chat = env.CHANNEL_ID || "@me_zdorovie";
   const b = await readJson(request);
   const text = String(b.text || "").slice(0, 3800);
-  const media = typeof b.media === "string" && /^https:\/\/[^\s]+\.(jpg|jpeg|png|mp4)(\?|$)/i.test(b.media) ? b.media : null;
+  const media = typeof b.media === "string" && isOwnMediaUrl(b.media, env) ? b.media : null;
   const pin = b.pin === true;
   const tg = (m, p) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${m}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }).then((r) => r.json()).catch(() => null);
 
