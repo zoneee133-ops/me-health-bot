@@ -2231,7 +2231,7 @@ function renderMeds(){
       e.stopPropagation();
       var med = state.meds.find(function(m){ return m.id === b.dataset.estmed; });
       var st = med && med.stages.filter(function(s){ return s.estimated; })[0];
-      showToast((st && st.estWhy) ? st.estWhy : 'В рецепте не указано, сколько принимать — Me поставил типичный курс. Уточните у врача.');
+      showToast((st && st.estWhy) ? st.estWhy : 'В рецепте не указано, сколько принимать — Me поставил типичный курс. Уточните у врача.', 4000);
     });
   });
 
@@ -2466,7 +2466,7 @@ function askAbout(text, autosend){
 
 /* ================= toast ================= */
 let toastTimer = null;
-function showToast(msg){
+function showToast(msg, duration){
   const toast = document.getElementById('toast');
   if (!toast) return;
   if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
@@ -2478,7 +2478,7 @@ function showToast(msg){
   toastTimer = setTimeout(() => {
     toast.classList.remove('show');
     toastTimer = null;
-  }, 4000);
+  }, duration || 1000);
 }
 // ensure toast is hidden on load
 (function(){ const t = document.getElementById('toast'); if (t) t.classList.remove('show'); })();
