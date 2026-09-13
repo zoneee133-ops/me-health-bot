@@ -2111,6 +2111,15 @@ function todayDoses(){
   return list;
 }
 
+var medsDoneOpen = false; // раскрыт ли свёрнутый список уже принятых доз (сбрасывается при перезагрузке)
+
+function doseRowHtml(d, cls){
+  return '<div class="dose-row ' + cls + '" data-dose="' + esc(d.key) + '" data-med="' + esc(d.medId) + '">' +
+    '<span class="dose-time">' + d.time + '</span>' +
+    '<span class="dose-name">' + esc(d.name) + (d.dose ? ' <span class="dose-dose">' + esc(d.dose) + '</span>' : '') + '</span>' +
+    '<span class="dose-check">' + (cls === 'done' ? '✓' : '') + '</span></div>';
+}
+
 function renderMeds(){
   refreshMedEmptyState();
   if (!state.meds.length){ medScheduleList.innerHTML = ''; return; }
@@ -2121,13 +2130,30 @@ function renderMeds(){
   if (!doses.length){
     todayHtml += '<div class="med-today-empty">На сегодня приёмов по расписанию нет</div>';
   } else {
-    todayHtml += '<div class="med-today">' + doses.map(function(d){
-      var cls = d.taken ? 'done' : (d.time <= now ? 'due' : 'later');
-      return '<div class="dose-row ' + cls + '" data-dose="' + esc(d.key) + '" data-med="' + esc(d.medId) + '">' +
-        '<span class="dose-time">' + d.time + '</span>' +
-        '<span class="dose-name">' + esc(d.name) + (d.dose ? ' <span class="dose-dose">' + esc(d.dose) + '</span>' : '') + '</span>' +
-        '<span class="dose-check">' + (d.taken ? '✓' : '') + '</span></div>';
-    }).join('') + '</div>';
+    var pending = doses.filter(function(d){ return !d.taken; });
+    var done = doses.filter(function(d){ return d.taken; });
+    var allDone = doses.length > 0 && pending.length === 0;
+
+    var rowsHtml = pending.map(function(d){ return doseRowHtml(d, d.time <= now ? 'due' : 'later'); }).join('');
+
+    if (done.length){
+      if (medsDoneOpen){
+        rowsHtml += '<div class="dose-group-header" id="doseDoneToggle">Принято сегодня' +
+          '<span class="dgh-count">' + done.length + '</span><span class="dgh-arrow">︿</span></div>';
+        rowsHtml += done.map(function(d){ return doseRowHtml(d, 'done'); }).join('');
+      } else if (allDone){
+        rowsHtml += '<div class="med-all-done" id="doseDoneToggle">' +
+          '<span class="adn-badge"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path class="adn-check" d="M5 13l4 4L19 7"/></svg></span>' +
+          '<span class="adn-text">Всё принято на сегодня</span></div>';
+      } else {
+        var names = done.map(function(d){ return d.name; }).join(', ');
+        rowsHtml += '<div class="dose-done-summary" id="doseDoneToggle">' +
+          '<span class="dds-badge">✓</span><span class="dds-text">Принято: ' + esc(names) + '</span>' +
+          '<span class="dds-count">' + done.length + '</span></div>';
+      }
+    }
+
+    todayHtml += '<div class="med-today">' + rowsHtml + '</div>';
   }
 
   var cardsHtml = '<p class="med-block-label" style="margin-top:18px;">Курс</p>' + state.meds.map(function(med){
@@ -2200,33 +2226,28 @@ function renderMeds(){
     row.addEventListener('click', function(){
       var med = state.meds.find(function(m){ return m.id === row.dataset.med; });
       if (!med) return;
-      var now = !med.taken[row.dataset.dose];
-      med.taken[row.dataset.dose] = now;
-      // анимируем прямо на строке, без полного перерендера — чтобы отработал transition
+      var willBeTaken = !med.taken[row.dataset.dose];
+      med.taken[row.dataset.dose] = willBeTaken;
+      // мгновенная обратная связь на самой строке — полный перерендер (со сборкой в свёрнутую
+      // строку) идёт следом, чтобы сначала отыграла анимация галочки
       row.classList.remove('due', 'later');
-      row.classList.toggle('done', now);
+      row.classList.toggle('done', willBeTaken);
       var chk = row.querySelector('.dose-check');
-      if (chk) chk.textContent = now ? '✓' : '';
+      if (chk) chk.textContent = willBeTaken ? '✓' : '';
       if (typeof __haptic === 'function') __haptic('light');
       if (typeof refreshStatusCards === 'function') refreshStatusCards();
 
-      var allRows = medScheduleList.querySelectorAll('.dose-row');
-      var allDone = allRows.length > 0 && Array.prototype.every.call(allRows, function(r){ return r.classList.contains('done'); });
-      var banner = document.getElementById('medAllDoneBanner');
-      if (allDone && !banner){
-        var todayBlock = medScheduleList.querySelector('.med-today');
-        if (todayBlock){
-          banner = document.createElement('div');
-          banner.id = 'medAllDoneBanner';
-          banner.className = 'med-all-done';
-          banner.innerHTML = '<span class="adn-badge"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path class="adn-check" d="M5 13l4 4L19 7"/></svg></span><span class="adn-text">Всё принято на сегодня</span>';
-          todayBlock.parentNode.insertBefore(banner, todayBlock);
-          try { var _tg = window.Telegram && window.Telegram.WebApp; if (_tg && _tg.HapticFeedback) _tg.HapticFeedback.notificationOccurred('success'); } catch(e){}
-        }
-      } else if (!allDone && banner){
-        banner.remove();
+      var doses = todayDoses();
+      if (willBeTaken && doses.length && doses.every(function(d){ return d.taken; })){
+        try { var _tg = window.Telegram && window.Telegram.WebApp; if (_tg && _tg.HapticFeedback) _tg.HapticFeedback.notificationOccurred('success'); } catch(e){}
       }
+      setTimeout(renderMeds, willBeTaken ? 550 : 0);
     });
+  });
+  var doseDoneToggle = document.getElementById('doseDoneToggle');
+  if (doseDoneToggle) doseDoneToggle.addEventListener('click', function(){
+    medsDoneOpen = !medsDoneOpen;
+    renderMeds();
   });
   medScheduleList.querySelectorAll('[data-explain]').forEach(function(el){
     el.addEventListener('click', function(){ openMedExplain(el.dataset.explain); });
