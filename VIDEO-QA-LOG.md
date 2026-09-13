@@ -51,3 +51,24 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 - pending reels: 2
 - cc6ea275-b882-4b04-a6ae-0409cc3dedb7: passed QA, approved
 - bd18bcea-86a6-430d-af05-d2ec6a3ee649: passed QA, approved
+
+## 2026-09-13 — cloud QA session (blocked, not a config issue)
+
+`WEBAPP_URL` and `ADMIN_KEY` were both provided to this run. `GET
+$WEBAPP_URL/api/queue?status=pending&kind=reel` failed before reaching the
+app: `curl: (56) CONNECT tunnel failed, response 403`. The session's agent
+proxy status confirms this is an org egress-policy denial on the
+`me-webapp.pages.dev` host itself (`connect_rejected`, "gateway answered 403
+to CONNECT"), not a certificate or credential problem — this matches the
+same Cloudflare Pages/Workers block already tracked in `HEALTH-LOG.md`
+across multiple runs.
+
+No queue items were listed, no videos were downloaded or probed, and no
+`queue-decide` calls were made — this cloud session simply cannot reach the
+API. `ADMIN_KEY` was not sent anywhere (there was nothing to send it to).
+
+This run made no changes to the bot's queue. The GitHub Actions-based video
+QA job (see the entries above, authored by `github-actions[bot]`) has real
+network access and continues to run this same gate successfully — this
+cloud-session job is redundant with it under the current network policy and
+cannot itself decide any reels until `*.pages.dev` egress is allowed here.
