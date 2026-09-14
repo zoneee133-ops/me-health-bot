@@ -58,6 +58,8 @@ export async function onRequest(context) {
     if (url.pathname === "/api/reminder" && request.method === "POST") return json(await apiReminderSave(request, env), 200, cors);
     if (url.pathname === "/api/visit" && request.method === "POST") return json(await apiVisitSave(request, env), 200, cors);
     if (url.pathname === "/api/visit" && request.method === "GET") return json(await apiVisitList(request, env), 200, cors);
+    if (url.pathname === "/api/admin-messages" && request.method === "GET") return json(await apiAdminMessages(request, env), 200, cors);
+    if (url.pathname === "/api/admin-reply" && request.method === "POST") return json(await apiAdminReply(request, env), 200, cors);
     if (url.pathname === "/api/tick") return json(await apiTick(request, env, context), 200, cors);
     if (url.pathname === "/api/erase" && request.method === "POST") return json(await apiErase(request, env), 200, cors);
     if (url.pathname === "/api/inbox" && request.method === "GET") return json(await apiInbox(request, url, env), 200, cors);
@@ -409,6 +411,45 @@ async function apiMedsList(request, env) {
   };
 }
 
+/* мост Telegram -> директор: любое обычное сообщение админа боту логируется сюда,
+   облачный агент раз в 15 мин читает новые и может ответить через /api/admin-reply */
+async function ensureAdminMessages(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS admin_messages (id TEXT PRIMARY KEY, text TEXT NOT NULL, created_at INTEGER NOT NULL, handled INTEGER DEFAULT 0)"
+  ).run().catch(() => {});
+}
+
+async function logAdminMessage(env, text) {
+  await ensureAdminMessages(env);
+  await env.DB.prepare("INSERT INTO admin_messages (id, text, created_at, handled) VALUES (?,?,?,0)")
+    .bind(crypto.randomUUID(), String(text).slice(0, 2000), Date.now()).run();
+}
+
+async function apiAdminMessages(request, env) {
+  if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
+  await ensureAdminMessages(env);
+  const url = new URL(request.url);
+  const onlyNew = url.searchParams.get("status") !== "all";
+  const { results } = await env.DB.prepare(
+    onlyNew
+      ? "SELECT id, text, created_at FROM admin_messages WHERE handled=0 ORDER BY created_at ASC LIMIT 50"
+      : "SELECT id, text, created_at FROM admin_messages ORDER BY created_at DESC LIMIT 50"
+  ).all();
+  return { items: results || [] };
+}
+
+async function apiAdminReply(request, env) {
+  if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
+  const body = await readJson(request);
+  if (!env.ADMIN_ID) throw httpErr(500, "ADMIN_ID not set");
+  const text = String(body.text || "").slice(0, 3800);
+  if (text) await sendMessage(env, env.ADMIN_ID, text);
+  await ensureAdminMessages(env);
+  const ids = Array.isArray(body.markHandled) ? body.markHandled.slice(0, 50) : [];
+  for (const id of ids) await env.DB.prepare("UPDATE admin_messages SET handled=1 WHERE id=?").bind(String(id)).run().catch(() => {});
+  return { ok: true };
+}
+
 async function ensureVisits(env) {
   await env.DB.prepare(
     "CREATE TABLE IF NOT EXISTS visits (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, date TEXT, doctor_type TEXT, notes TEXT, medication TEXT, labs TEXT, follow_up TEXT, created_at INTEGER NOT NULL)"
@@ -599,6 +640,12 @@ async function handleWebhook(request, env) {
     // ответ Роберта реплаем на карточку фидбека -> пересылаем автору вопроса
     if (isSelf && isAdmin(env, fromId) && m.reply_to_message) {
       try { if (await handleAdminReply(env, m)) return new Response("ok"); } catch (e) {}
+    }
+    // логируем ЛЮБОЕ обычное сообщение админа — раньше то, что не попадало в конкретный
+    // флоу (причина отказа/реплай), просто терялось; теперь директор видит всё через
+    // /api/admin-messages, даже если бот ответил "не нашёл"
+    if (isSelf && isAdmin(env, fromId) && !text.startsWith("/")) {
+      try { await logAdminMessage(env, text); } catch (e) {}
     }
     // Роберт написал причину к только что отклонённому ролику
     if (isSelf && isAdmin(env, fromId) && !text.startsWith("/")) {
