@@ -63,3 +63,12 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-14T00:37:01Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-14 (run skipped — missing config, cloud session)
+
+- `WEBAPP_URL` is not set in this session's actual environment.
+- `ADMIN_KEY` is not set in this session's actual environment.
+- The scheduled prompt for this run included literal `WEBAPP_URL=`/`ADMIN_KEY=` text values inline rather than as real environment variables. Per this task's own rule ("если ADMIN_KEY или WEBAPP_URL не заданы — зафиксируй это и закончи") and standard secret-handling practice, credentials pasted directly into prompt text are not treated as a valid substitute for a securely provisioned environment variable, so no request was made to the queue API and no queue-decide call was issued.
+- No reels were checked, downloaded, or decided in this run. Nothing was modified in the bot's queue.
+
+**Action needed:** if this QA gate is meant to also run from a Claude Code cloud session (in addition to the existing GitHub Actions workflow), provision `WEBAPP_URL` and `ADMIN_KEY` as real environment variables on that session/environment (not as prompt text) so the next run can proceed.
