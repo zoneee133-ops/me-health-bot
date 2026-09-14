@@ -57,55 +57,77 @@ const PaperChaos: React.FC = () => {
   );
 };
 
-// Абстрактная светящаяся фигура человека из примитивов three.js — не анатомическая модель,
-// стилизованный силуэт для "рентген"-эффекта.
+// Глянцевый манекен из примитивов three.js — не анатомическая модель, стилизованный
+// силуэт наподобие витринного манекена, с подсветкой сустава для "рентген"-эффекта.
 const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
   const f = useCurrentFrame();
   const group = useRef<THREE.Group>(null);
-  const kneeRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
     if (group.current) group.current.rotation.y = f * 0.012;
   });
 
-  const glow = T.accent;
   const pulse = 0.5 + 0.5 * Math.sin(Math.max(0, f - highlightFrame) / 6);
   const highlightActive = f > highlightFrame;
+  const mannequin = '#F2F3F5';
+
+  const glossy = (
+    <meshStandardMaterial color={mannequin} metalness={0.15} roughness={0.12} envMapIntensity={1.4} />
+  );
 
   return (
-    <group ref={group}>
-      {/* голова */}
-      <mesh position={[0, 3.1, 0]}>
-        <sphereGeometry args={[0.55, 32, 32]} />
-        <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={0.6} transparent opacity={0.85} />
+    <group ref={group} position={[0, -0.3, 0]}>
+      {/* голова — вытянутое яйцо, без лица */}
+      <mesh position={[0, 3.35, 0]} scale={[0.62, 0.86, 0.68]}>
+        <sphereGeometry args={[0.5, 32, 32]} />
+        {glossy}
       </mesh>
-      {/* торс */}
-      <mesh position={[0, 1.4, 0]}>
-        <capsuleGeometry args={[0.62, 1.8, 8, 16]} />
-        <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={0.5} transparent opacity={0.8} />
+      {/* шея */}
+      <mesh position={[0, 2.78, 0]}>
+        <cylinderGeometry args={[0.18, 0.22, 0.3, 16]} />
+        {glossy}
       </mesh>
-      {/* руки */}
-      <mesh position={[-1.0, 1.5, 0]} rotation={[0, 0, 0.25]}>
-        <capsuleGeometry args={[0.18, 1.6, 8, 16]} />
-        <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={0.5} transparent opacity={0.75} />
+      {/* плечи/торс — сужение к талии */}
+      <mesh position={[0, 1.95, 0]} scale={[1.05, 1, 0.85]}>
+        <capsuleGeometry args={[0.58, 0.5, 8, 16]} />
+        {glossy}
       </mesh>
-      <mesh position={[1.0, 1.5, 0]} rotation={[0, 0, -0.25]}>
-        <capsuleGeometry args={[0.18, 1.6, 8, 16]} />
-        <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={0.5} transparent opacity={0.75} />
+      <mesh position={[0, 1.15, 0]} scale={[0.82, 1, 0.75]}>
+        <capsuleGeometry args={[0.42, 0.9, 8, 16]} />
+        {glossy}
       </mesh>
-      {/* ноги */}
-      <mesh position={[-0.32, -0.9, 0]}>
-        <capsuleGeometry args={[0.22, 1.9, 8, 16]} />
-        <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={0.5} transparent opacity={0.75} />
+      {/* таз — плавный переход к ногам */}
+      <mesh position={[0, 0.35, 0]} scale={[1, 0.9, 0.85]}>
+        <capsuleGeometry args={[0.46, 0.3, 8, 16]} />
+        {glossy}
       </mesh>
-      <mesh position={[0.32, -0.9, 0]} ref={kneeRef}>
-        <capsuleGeometry args={[0.22, 1.9, 8, 16]} />
+      {/* руки, свободно свисают вдоль тела */}
+      <mesh position={[-0.78, 1.35, 0.05]} rotation={[0, 0, 0.09]}>
+        <capsuleGeometry args={[0.13, 1.7, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.78, 1.35, -0.05]} rotation={[0, 0, -0.09]}>
+        <capsuleGeometry args={[0.13, 1.7, 8, 16]} />
+        {glossy}
+      </mesh>
+      {/* нога опорная */}
+      <mesh position={[-0.24, -1.15, -0.1]} rotation={[0.05, 0, 0]}>
+        <capsuleGeometry args={[0.2, 2.0, 8, 16]} />
+        {glossy}
+      </mesh>
+      {/* нога шаговая — подсвечиваемый сустав у колена */}
+      <mesh position={[0.26, -0.62, 0.35]} rotation={[-0.35, 0, 0]}>
+        <capsuleGeometry args={[0.2, 0.95, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.26, -1.55, 0.55]} rotation={[0.15, 0, 0]}>
+        <capsuleGeometry args={[0.19, 0.95, 8, 16]} />
         <meshStandardMaterial
-          color={highlightActive ? T.bad : glow}
-          emissive={highlightActive ? T.bad : glow}
-          emissiveIntensity={highlightActive ? 0.8 + pulse * 0.6 : 0.5}
-          transparent
-          opacity={0.85}
+          color={highlightActive ? T.bad : mannequin}
+          emissive={highlightActive ? T.bad : '#000000'}
+          emissiveIntensity={highlightActive ? 0.9 + pulse * 0.6 : 0}
+          metalness={0.15}
+          roughness={0.12}
         />
       </mesh>
     </group>
@@ -117,10 +139,10 @@ const XrayScene: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
   const camZ = interpolate(f, [0, 60], [11, 8.5], {extrapolateRight: 'clamp'});
   return (
     <ThreeCanvas linear width={1080} height={1920} style={{background: '#0A0A0C'}}>
-      <ambientLight intensity={1.1} />
-      <pointLight position={[3, 4, 5]} intensity={90} color={T.accent} />
-      <pointLight position={[-3, -2, 4]} intensity={60} color="#ffffff" />
-      <pointLight position={[0, 0, 6]} intensity={50} color={T.accent} />
+      <ambientLight intensity={0.5} />
+      <pointLight position={[3, 5, 5]} intensity={140} color="#ffffff" />
+      <pointLight position={[-3, 1, 4]} intensity={70} color={T.accent} />
+      <pointLight position={[0, -2, 5]} intensity={50} color="#ffffff" />
       <perspectiveCamera makeDefault position={[0, 0.7, camZ]} fov={55} />
       <GlowFigure highlightFrame={highlightFrame} />
     </ThreeCanvas>
@@ -185,7 +207,7 @@ export const ReelXrayBody: React.FC = () => (
       <Caption lines={['Что на самом деле значат', 'твои анализы?']} from={10} dur={75} align="top" scrim={false} dark />
     </Sequence>
 
-    <Sequence from={90} durationInFrames={360}>
+    <Sequence from={90} durationInFrames={230}>
       <AbsoluteFill style={{background: '#0A0A0C'}}>
         <XrayScene highlightFrame={90} />
         <GreenSweep />
@@ -193,7 +215,7 @@ export const ReelXrayBody: React.FC = () => (
       </AbsoluteFill>
     </Sequence>
 
-    <Sequence from={450} durationInFrames={130}>
+    <Sequence from={320} durationInFrames={130}>
       <EndCard from={0} dur={130} tagline={['Переводим медицину', 'на человеческий']} />
     </Sequence>
   </AbsoluteFill>

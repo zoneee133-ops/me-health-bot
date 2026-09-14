@@ -74,6 +74,6 @@ export const RemotionRoot: React.FC = () => (
     {reel('ReelKidsAgeNorms', ReelKidsAgeNorms, 657)}
     {reel('ReelRefRange', ReelRefRange, 651)}
     {reel('ReelGlitchTranslator', ReelGlitchTranslator, 810)}
-    {reel('ReelXrayBody', ReelXrayBody, 580)}
+    {reel('ReelXrayBody', ReelXrayBody, 450)}
   </>
 );
