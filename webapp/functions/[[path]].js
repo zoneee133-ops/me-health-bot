@@ -545,6 +545,8 @@ async function apiTick(request, env, ctx) {
       const [hh, mm] = t.split(":").map(Number);
       const slotMin = hh * 60 + mm;
       if (nowMin < slotMin || nowMin - slotMin > 20) continue;
+      const taken = safeParse(m.taken) || {};
+      if (taken[dateStr + "|" + act.index + "|" + t]) continue; // уже отмечено принятым — не дёргаем
       const slotKey = "s" + act.index + "_" + t;
       const dedupe = await env.DB.prepare("SELECT 1 FROM med_log WHERE med_id=? AND slot=? AND sent_date=?").bind(m.id, slotKey, dateStr).first();
       if (dedupe) continue;
