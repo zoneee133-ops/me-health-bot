@@ -101,24 +101,89 @@ const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
         <capsuleGeometry args={[0.46, 0.3, 8, 16]} />
         {glossy}
       </mesh>
-      {/* руки, свободно свисают вдоль тела */}
-      <mesh position={[-0.78, 1.35, 0.05]} rotation={[0, 0, 0.09]}>
-        <capsuleGeometry args={[0.13, 1.7, 8, 16]} />
+
+      {/* плечевые шарниры — скрывают шов рука/торс */}
+      <mesh position={[-0.58, 2.15, 0]}>
+        <sphereGeometry args={[0.19, 24, 24]} />
         {glossy}
       </mesh>
-      <mesh position={[0.78, 1.35, -0.05]} rotation={[0, 0, -0.09]}>
-        <capsuleGeometry args={[0.13, 1.7, 8, 16]} />
+      <mesh position={[0.58, 2.15, 0]}>
+        <sphereGeometry args={[0.19, 24, 24]} />
         {glossy}
       </mesh>
+      {/* плечо → предплечье, две секции с локтевым шарниром для лёгкого сгиба */}
+      <mesh position={[-0.66, 1.55, 0.03]} rotation={[0, 0, 0.06]}>
+        <capsuleGeometry args={[0.135, 0.85, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[-0.7, 0.78, 0.1]}>
+        <sphereGeometry args={[0.12, 20, 20]} />
+        {glossy}
+      </mesh>
+      <mesh position={[-0.72, 0.35, 0.13]} rotation={[0.08, 0, 0.02]}>
+        <capsuleGeometry args={[0.115, 0.75, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[-0.73, -0.1, 0.16]}>
+        <sphereGeometry args={[0.11, 18, 18]} />
+        {glossy}
+      </mesh>
+
+      <mesh position={[0.66, 1.55, -0.03]} rotation={[0, 0, -0.06]}>
+        <capsuleGeometry args={[0.135, 0.85, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.7, 0.78, -0.1]}>
+        <sphereGeometry args={[0.12, 20, 20]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.72, 0.35, -0.13]} rotation={[0.08, 0, -0.02]}>
+        <capsuleGeometry args={[0.115, 0.75, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.73, -0.1, -0.16]}>
+        <sphereGeometry args={[0.11, 18, 18]} />
+        {glossy}
+      </mesh>
+
+      {/* тазобедренные шарниры */}
+      <mesh position={[-0.26, 0.1, -0.05]}>
+        <sphereGeometry args={[0.21, 24, 24]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.26, 0.1, 0.05]}>
+        <sphereGeometry args={[0.21, 24, 24]} />
+        {glossy}
+      </mesh>
+
       {/* нога опорная */}
       <mesh position={[-0.24, -1.15, -0.1]} rotation={[0.05, 0, 0]}>
         <capsuleGeometry args={[0.2, 2.0, 8, 16]} />
         {glossy}
       </mesh>
+      <mesh position={[-0.26, -2.2, -0.14]}>
+        <sphereGeometry args={[0.18, 20, 20]} />
+        {glossy}
+      </mesh>
+      <mesh position={[-0.22, -2.28, 0.08]} scale={[0.85, 0.5, 1.6]}>
+        <sphereGeometry args={[0.2, 20, 20]} />
+        {glossy}
+      </mesh>
+
       {/* нога шаговая — подсвечиваемый сустав у колена */}
       <mesh position={[0.26, -0.62, 0.35]} rotation={[-0.35, 0, 0]}>
         <capsuleGeometry args={[0.2, 0.95, 8, 16]} />
         {glossy}
+      </mesh>
+      <mesh position={[0.26, -1.15, 0.62]}>
+        <sphereGeometry args={[0.19, 22, 22]} />
+        <meshStandardMaterial
+          color={highlightActive ? T.bad : mannequin}
+          emissive={highlightActive ? T.bad : '#000000'}
+          emissiveIntensity={highlightActive ? 0.9 + pulse * 0.6 : 0}
+          metalness={0.15}
+          roughness={0.12}
+        />
       </mesh>
       <mesh position={[0.26, -1.55, 0.55]} rotation={[0.15, 0, 0]}>
         <capsuleGeometry args={[0.19, 0.95, 8, 16]} />
@@ -130,20 +195,28 @@ const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
           roughness={0.12}
         />
       </mesh>
+      <mesh position={[0.27, -2.02, 0.5]}>
+        <sphereGeometry args={[0.17, 20, 20]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.3, -2.1, 0.7]} scale={[0.8, 0.5, 1.6]}>
+        <sphereGeometry args={[0.19, 20, 20]} />
+        {glossy}
+      </mesh>
     </group>
   );
 };
 
 const XrayScene: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
   const f = useCurrentFrame();
-  const camZ = interpolate(f, [0, 60], [11, 8.5], {extrapolateRight: 'clamp'});
+  const camZ = interpolate(f, [0, 60], [14, 11], {extrapolateRight: 'clamp'});
   return (
     <ThreeCanvas linear width={1080} height={1920} style={{background: '#0A0A0C'}}>
       <ambientLight intensity={0.5} />
       <pointLight position={[3, 5, 5]} intensity={140} color="#ffffff" />
       <pointLight position={[-3, 1, 4]} intensity={70} color={T.accent} />
       <pointLight position={[0, -2, 5]} intensity={50} color="#ffffff" />
-      <perspectiveCamera makeDefault position={[0, 0.7, camZ]} fov={55} />
+      <perspectiveCamera makeDefault position={[0, 1.6, camZ]} fov={50} />
       <GlowFigure highlightFrame={highlightFrame} />
     </ThreeCanvas>
   );

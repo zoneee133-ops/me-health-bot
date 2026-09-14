@@ -19,6 +19,7 @@ import {ReelKidsAgeNorms} from './reels/ReelKidsAgeNorms';
 import {ReelRefRange} from './reels/ReelRefRange';
 import {ReelGlitchTranslator} from './reels/ReelGlitchTranslator';
 import {ReelXrayBody} from './reels/ReelXrayBody';
+import {ReelMascot} from './reels/ReelMascot';
 
 const reel = (id: string, component: React.FC, durationInFrames: number) => (
   <Composition
@@ -75,5 +76,6 @@ export const RemotionRoot: React.FC = () => (
     {reel('ReelRefRange', ReelRefRange, 651)}
     {reel('ReelGlitchTranslator', ReelGlitchTranslator, 810)}
     {reel('ReelXrayBody', ReelXrayBody, 450)}
+    {reel('ReelMascot', ReelMascot, 820)}
   </>
 );
