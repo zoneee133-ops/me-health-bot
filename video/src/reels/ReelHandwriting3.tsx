@@ -9,29 +9,29 @@ export const ReelHandwriting3: React.FC = () => (
   <AbsoluteFill style={{fontFamily: T.font}}>
     <ReelBg />
 
-    <Sequence from={0} durationInFrames={110}>
-      <Scene from={0} dur={110}>
+    <Sequence from={0} durationInFrames={68}>
+      <Scene from={0} dur={68}>
         <RxPaper />
-        <Caption lines={['3 слова из 15', 'вообще разборчивы']} from={4} dur={100} align="top" scrim={false} />
+        <Caption lines={['3 слова из 15', 'вообще разборчивы']} from={2} dur={62} align="top" scrim={false} />
       </Scene>
     </Sequence>
 
-    <Sequence from={110} durationInFrames={48}>
-      <Scene from={0} dur={48}>
+    <Sequence from={68} durationInFrames={30}>
+      <Scene from={0} dur={30}>
         <Flash />
-        <Caption lines={['Сфоткал — и готово']} from={2} dur={42} align="top" scrim={false} />
+        <Caption lines={['Сфоткал — и готово']} from={1} dur={26} align="top" scrim={false} />
       </Scene>
     </Sequence>
 
-    <Sequence from={158} durationInFrames={210}>
-      <Scene from={0} dur={210}>
+    <Sequence from={98} durationInFrames={130}>
+      <Scene from={0} dur={130}>
         <Schedule />
-        <Caption lines={['Остальные 12 слов', 'тоже расшифрованы']} from={14} dur={192} />
+        <Caption lines={['Остальные 12 слов', 'тоже расшифрованы']} from={9} dur={119} />
       </Scene>
     </Sequence>
 
-    <Sequence from={368} durationInFrames={108}>
-      <EndCard from={0} dur={108} tagline={['Любой почерк —', 'без проблем']} />
+    <Sequence from={228} durationInFrames={66}>
+      <EndCard from={0} dur={66} tagline={['Любой почерк —', 'без проблем']} />
     </Sequence>
   </AbsoluteFill>
 );

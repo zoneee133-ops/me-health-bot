@@ -10,29 +10,29 @@ export const ReelHandwriting2: React.FC = () => (
   <AbsoluteFill style={{fontFamily: T.font}}>
     <ReelBg />
 
-    <Sequence from={0} durationInFrames={110}>
-      <Scene from={0} dur={110}>
+    <Sequence from={0} durationInFrames={77}>
+      <Scene from={0} dur={77}>
         <RxPaper />
-        <Caption lines={['Вернулся от врача.', 'И вообще не вдупляешь']} from={4} dur={100} align="top" scrim={false} />
+        <Caption lines={['Вернулся от врача.', 'И вообще не вдупляешь']} from={3} dur={70} align="top" scrim={false} />
       </Scene>
     </Sequence>
 
-    <Sequence from={110} durationInFrames={48}>
-      <Scene from={0} dur={48}>
+    <Sequence from={77} durationInFrames={34}>
+      <Scene from={0} dur={34}>
         <Flash />
-        <Caption lines={['Фото — и всё ясно']} from={2} dur={42} align="top" scrim={false} />
+        <Caption lines={['Фото — и всё ясно']} from={1} dur={30} align="top" scrim={false} />
       </Scene>
     </Sequence>
 
-    <Sequence from={158} durationInFrames={210}>
-      <Scene from={0} dur={210}>
+    <Sequence from={111} durationInFrames={147}>
+      <Scene from={0} dur={147}>
         <Schedule />
-        <Caption lines={['Название, доза, дни —', 'разложено само']} from={14} dur={192} />
+        <Caption lines={['Название, доза, дни —', 'разложено само']} from={10} dur={135} />
       </Scene>
     </Sequence>
 
-    <Sequence from={368} durationInFrames={108}>
-      <EndCard from={0} dur={108} tagline={['Без гадания,', 'что там писали']} />
+    <Sequence from={258} durationInFrames={76}>
+      <EndCard from={0} dur={76} tagline={['Без гадания,', 'что там писали']} />
     </Sequence>
   </AbsoluteFill>
 );

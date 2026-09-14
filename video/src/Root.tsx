@@ -59,8 +59,8 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="Promo3D" component={Promo3D} durationInFrames={480} fps={30} width={1080} height={1920} />
     {reel('ReelDecode', ReelDecode, 620)}
     {reel('ReelHandwriting', ReelHandwriting, 585)}
-    {reel('ReelHandwriting2', ReelHandwriting2, 476)}
-    {reel('ReelHandwriting3', ReelHandwriting3, 476)}
+    {reel('ReelHandwriting2', ReelHandwriting2, 334)}
+    {reel('ReelHandwriting3', ReelHandwriting3, 294)}
     {reel('ReelShowMom', ReelShowMom, 700)}
     {reel('ReelAboveNormal', ReelAboveNormal, 610)}
     {reel('ReelFerritin', ReelFerritin, 730)}
