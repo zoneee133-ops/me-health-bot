@@ -13,7 +13,7 @@ const Squiggle: React.FC<{y: number; w: number; seed: number}> = ({y, w, seed}) 
   return <path d={d} stroke={T.ink} strokeOpacity={0.72} strokeWidth={3.4} fill="none" strokeLinecap="round" />;
 };
 
-const RxPaper: React.FC = () => {
+export const RxPaper: React.FC = () => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   const s = spring({frame: f - 4, fps, config: {damping: 200, mass: 1.5}});
@@ -56,7 +56,7 @@ const RxPaper: React.FC = () => {
   );
 };
 
-const Flash: React.FC = () => {
+export const Flash: React.FC = () => {
   const f = useCurrentFrame();
   const o = interpolate(f, [0, 4, 8, 20], [0, 0.9, 0.3, 0], {extrapolateRight: 'clamp'});
   const shrink = interpolate(f, [0, 18], [1, 0.9], {extrapolateRight: 'clamp'});
@@ -94,7 +94,7 @@ const Day: React.FC<{d: string; delay: number}> = ({d, delay}) => {
   );
 };
 
-const Schedule: React.FC = () => (
+export const Schedule: React.FC = () => (
   <MePhone delay={4}>
     <div
       style={{
