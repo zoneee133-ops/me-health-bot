@@ -75,3 +75,10 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-15T00:37:53Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-15T00:52:27Z — Claude Code cloud session run (skipped — network policy)
+- `WEBAPP_URL` and `ADMIN_KEY` were provided in this run's task prompt.
+- `GET $WEBAPP_URL/api/queue?status=pending&kind=reel` could not be attempted end-to-end: this session's outbound network policy (egress proxy allowlist) does not include `me-webapp.pages.dev`, and the proxy returned `403 Forbidden` on the CONNECT tunnel for that host (confirmed via the proxy's own status endpoint, which also shows the same 403 for `ppa.launchpadcontent.net`, an unrelated apt PPA, ruling out a target-specific block).
+- No queue data was read, no videos were downloaded, and no `queue-decide` calls were made. No reel statuses were changed.
+- `ffmpeg`/`ffprobe` were installed successfully in this session and are ready for the next run once network access to `WEBAPP_URL` is available.
+- **Action needed:** this scheduled task's environment needs its network egress policy widened to allow the webapp host (or the task should run through the existing GitHub Actions workflow, which already reaches `$WEBAPP_URL` successfully per the runs above).
