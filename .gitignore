@@ -19,3 +19,4 @@ content/brand/instagram/*.png
 content/brand/instagram/*.html
 content/brand/reel-covers/*.png
 .secrets-local.md
+strix_runs/

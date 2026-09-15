@@ -44,6 +44,8 @@ mux(){
 
 mux ReelDecode      reel-a-rasshifrovka  a1 a2 a3
 mux ReelHandwriting reel-b-pocherk       b1 b2 b3
+mux ReelHandwriting2 reel-b2-vdupliaesh  b2h1 b2h2 b2h3
+mux ReelHandwriting3 reel-b3-3slova      b3h1 b3h2 b3h3
 mux ReelShowMom     reel-c-pokazhi-mame  c1 c2 c4
 #mux ReelAboveNormal reel-d-vyshe-normy   d1 d2 d3
 mux ReelFerritin    reel-e-ferritin      e1 e2 e3 e4

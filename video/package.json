@@ -7,14 +7,20 @@
     "render": "remotion render MePromo out/me-promo.mp4"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.7.0",
     "@remotion/cli": "^4.0.523",
+    "@remotion/lottie": "4.0.523",
+    "@remotion/three": "4.0.523",
+    "lottie-web": "^5.13.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "remotion": "^4.0.523"
+    "remotion": "^4.0.523",
+    "three": "0.186.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
     "typescript": "^7.0.2"
   }
 }

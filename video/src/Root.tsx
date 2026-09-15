@@ -5,6 +5,8 @@ import {Promo3D} from './Promo3D';
 import {en} from './copy';
 import {ReelDecode} from './reels/ReelDecode';
 import {ReelHandwriting} from './reels/ReelHandwriting';
+import {ReelHandwriting2} from './reels/ReelHandwriting2';
+import {ReelHandwriting3} from './reels/ReelHandwriting3';
 import {ReelShowMom} from './reels/ReelShowMom';
 import {ReelAboveNormal} from './reels/ReelAboveNormal';
 import {ReelFerritin} from './reels/ReelFerritin';
@@ -15,6 +17,9 @@ import {ReelKidsUrine} from './reels/ReelKidsUrine';
 import {ReelSportCheckup} from './reels/ReelSportCheckup';
 import {ReelKidsAgeNorms} from './reels/ReelKidsAgeNorms';
 import {ReelRefRange} from './reels/ReelRefRange';
+import {ReelGlitchTranslator} from './reels/ReelGlitchTranslator';
+import {ReelXrayBody} from './reels/ReelXrayBody';
+import {ReelMascot} from './reels/ReelMascot';
 
 const reel = (id: string, component: React.FC, durationInFrames: number) => (
   <Composition
@@ -57,6 +62,8 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="Promo3D" component={Promo3D} durationInFrames={480} fps={30} width={1080} height={1920} />
     {reel('ReelDecode', ReelDecode, 620)}
     {reel('ReelHandwriting', ReelHandwriting, 585)}
+    {reel('ReelHandwriting2', ReelHandwriting2, 334)}
+    {reel('ReelHandwriting3', ReelHandwriting3, 294)}
     {reel('ReelShowMom', ReelShowMom, 700)}
     {reel('ReelAboveNormal', ReelAboveNormal, 610)}
     {reel('ReelFerritin', ReelFerritin, 730)}
@@ -67,5 +74,8 @@ export const RemotionRoot: React.FC = () => (
     {reel('ReelSportCheckup', ReelSportCheckup, 622)}
     {reel('ReelKidsAgeNorms', ReelKidsAgeNorms, 657)}
     {reel('ReelRefRange', ReelRefRange, 651)}
+    {reel('ReelGlitchTranslator', ReelGlitchTranslator, 810)}
+    {reel('ReelXrayBody', ReelXrayBody, 450)}
+    {reel('ReelMascot', ReelMascot, 820)}
   </>
 );

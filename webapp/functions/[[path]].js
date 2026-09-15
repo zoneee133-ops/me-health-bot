@@ -60,6 +60,7 @@ export async function onRequest(context) {
     if (url.pathname === "/api/visit" && request.method === "GET") return json(await apiVisitList(request, env), 200, cors);
     if (url.pathname === "/api/admin-messages" && request.method === "GET") return json(await apiAdminMessages(request, env), 200, cors);
     if (url.pathname === "/api/admin-reply" && request.method === "POST") return json(await apiAdminReply(request, env), 200, cors);
+    if (url.pathname === "/api/admin-send-photo" && request.method === "POST") return json(await apiAdminSendPhoto(request, env), 200, cors);
     if (url.pathname === "/api/tick") return json(await apiTick(request, env, context), 200, cors);
     if (url.pathname === "/api/erase" && request.method === "POST") return json(await apiErase(request, env), 200, cors);
     if (url.pathname === "/api/inbox" && request.method === "GET") return json(await apiInbox(request, url, env), 200, cors);
@@ -1258,6 +1259,23 @@ async function sendMessage(env, chatId, text, replyMarkup) {
     });
     return r.json();
   } catch (e) { return null; }
+}
+
+// Отправка фото прямо в личку админу (multipart), для передачи файлов вроде заготовок сторис.
+async function apiAdminSendPhoto(request, env) {
+  if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("X-Admin-Key") || "", env.ADMIN_KEY)) throw httpErr(401, "unauthorized");
+  if (!env.ADMIN_ID) throw httpErr(500, "ADMIN_ID not set");
+  const form = await request.formData();
+  const photo = form.get("photo");
+  if (!photo || typeof photo === "string") throw httpErr(400, "photo file required");
+  const caption = String(form.get("caption") || "").slice(0, 1024);
+  const fd = new FormData();
+  fd.append("chat_id", env.ADMIN_ID);
+  if (caption) fd.append("caption", caption);
+  fd.append("photo", photo, "story.png");
+  const d = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendPhoto`, { method: "POST", body: fd }).then((r) => r.json()).catch(() => null);
+  if (!d || !d.ok) throw httpErr(502, (d && d.description) || "photo failed");
+  return { ok: true };
 }
 
 // Публикация в канал @me_zdorovie через бота (бот должен быть админом канала).
