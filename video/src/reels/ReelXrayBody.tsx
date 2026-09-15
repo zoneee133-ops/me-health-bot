@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {useMemo, useRef} from 'react';
 import {ThreeCanvas} from '@remotion/three';
-import {useFrame} from '@react-three/fiber';
+import {useFrame, useThree} from '@react-three/fiber';
 import {AbsoluteFill, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {T} from '../theme';
 import {ReelBg, Caption, EndCard, Sparkle} from './shared';
@@ -64,7 +64,7 @@ const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
   const group = useRef<THREE.Group>(null);
 
   useFrame(() => {
-    if (group.current) group.current.rotation.y = f * 0.012;
+    if (group.current) group.current.rotation.y = f * 0.004;
   });
 
   const pulse = 0.5 + 0.5 * Math.sin(Math.max(0, f - highlightFrame) / 6);
@@ -87,105 +87,126 @@ const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
 
   // Все сегменты строго вертикальны (без наклона/смещения по Z), поэтому силуэт
   // остаётся цельным при повороте камеры вокруг Y — швы не "разъезжаются".
+  // Плечо → локоть → кисть, как единая цепочка сегментов, растущая из общей
+  // точки на плече — визуально не рвётся, потому что верх каждого следующего
+  // сегмента совпадает с положением сферы-сустава предыдущего.
+  const Arm: React.FC<{side: 1 | -1}> = ({side}) => {
+    const shoulder: [number, number, number] = [side * 0.66, 2.42, 0];
+    const elbow: [number, number, number] = [side * 1.08, 1.95, 0];
+    const wrist: [number, number, number] = [side * 1.08, 1.42, 0];
+    const upperMid: [number, number, number] = [
+      (shoulder[0] + elbow[0]) / 2,
+      (shoulder[1] + elbow[1]) / 2,
+      0,
+    ];
+    const lowerMid: [number, number, number] = [
+      (elbow[0] + wrist[0]) / 2,
+      (elbow[1] + wrist[1]) / 2,
+      0,
+    ];
+    // угол верхней части руки: от плеча наружу-вниз к локтю
+    const dx = elbow[0] - shoulder[0];
+    const dy = elbow[1] - shoulder[1];
+    const upperAngle = Math.atan2(dx, dy) * -1 * side;
+    return (
+      <group>
+        <mesh position={shoulder}>
+          <sphereGeometry args={[0.23, 24, 24]} />
+          {glossy}
+        </mesh>
+        <mesh position={upperMid} rotation={[0, 0, side * upperAngle]}>
+          <capsuleGeometry args={[0.17, 0.28, 8, 16]} />
+          {glossy}
+        </mesh>
+        <mesh position={elbow}>
+          <sphereGeometry args={[0.165, 20, 20]} />
+          {glossy}
+        </mesh>
+        <mesh position={lowerMid}>
+          <capsuleGeometry args={[0.15, 0.34, 8, 16]} />
+          {glossy}
+        </mesh>
+        <mesh position={wrist}>
+          <sphereGeometry args={[0.15, 18, 18]} />
+          {glossy}
+        </mesh>
+      </group>
+    );
+  };
+
   return (
-    <group ref={group} position={[0, -0.3, 0]}>
-      {/* голова — вытянутое яйцо, без лица */}
-      <mesh position={[0, 3.4, 0]} scale={[0.62, 0.86, 0.68]}>
-        <sphereGeometry args={[0.5, 32, 32]} />
-        {glossy}
-      </mesh>
-      {/* шея */}
-      <mesh position={[0, 2.85, 0]}>
-        <cylinderGeometry args={[0.18, 0.22, 0.3, 16]} />
-        {glossy}
-      </mesh>
-      {/* плечевые шарниры */}
-      <mesh position={[-0.56, 2.5, 0]}>
-        <sphereGeometry args={[0.22, 24, 24]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.56, 2.5, 0]}>
-        <sphereGeometry args={[0.22, 24, 24]} />
+    <group ref={group} position={[0, -0.1, 0]}>
+      {/* голова — круглая, сидит прямо на плечах, без шеи */}
+      <mesh position={[0, 2.98, 0]}>
+        <sphereGeometry args={[0.66, 32, 32]} />
         {glossy}
       </mesh>
       {/* торс — единая капсула от плеч до таза */}
-      <mesh position={[0, 1.3, 0]} scale={[1, 1, 0.85]}>
-        <capsuleGeometry args={[0.55, 1.4, 8, 16]} />
+      <mesh position={[0, 1.55, 0]} scale={[1, 1, 0.9]}>
+        <capsuleGeometry args={[0.56, 1.2, 8, 16]} />
         {glossy}
       </mesh>
-      {/* тазобедренные шарниры */}
-      <mesh position={[-0.28, 0.05, 0]}>
-        <sphereGeometry args={[0.24, 24, 24]} />
+      {/* небольшие тазобедренные шарниры — ноги почти вплотную */}
+      <mesh position={[-0.24, 0.35, 0]}>
+        <sphereGeometry args={[0.2, 20, 20]} />
         {glossy}
       </mesh>
-      <mesh position={[0.28, 0.05, 0]}>
-        <sphereGeometry args={[0.24, 24, 24]} />
-        {glossy}
-      </mesh>
-
-      {/* руки — прямо вдоль тела, без сгиба и смещения по Z */}
-      <mesh position={[-0.68, 1.35, 0]}>
-        <capsuleGeometry args={[0.14, 2.3, 8, 16]} />
-        {glossy}
-      </mesh>
-      <mesh position={[-0.68, 0.06, 0]}>
-        <sphereGeometry args={[0.13, 18, 18]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.68, 1.35, 0]}>
-        <capsuleGeometry args={[0.14, 2.3, 8, 16]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.68, 0.06, 0]}>
-        <sphereGeometry args={[0.13, 18, 18]} />
-        {glossy}
-      </mesh>
-
-      {/* ноги — прямо вниз, единая капсула на каждую */}
-      <mesh position={[-0.28, -1.15, 0]}>
-        <capsuleGeometry args={[0.22, 1.9, 8, 16]} />
-        {glossy}
-      </mesh>
-      <mesh position={[-0.28, -2.25, 0]}>
-        <sphereGeometry args={[0.18, 20, 20]} />
-        {glossy}
-      </mesh>
-      <mesh position={[-0.28, -2.32, 0.14]} scale={[0.85, 0.5, 1.6]}>
+      <mesh position={[0.24, 0.35, 0]}>
         <sphereGeometry args={[0.2, 20, 20]} />
         {glossy}
       </mesh>
 
-      <mesh position={[0.28, -1.15, 0]}>
-        <capsuleGeometry args={[0.22, 1.9, 8, 16]} />
-        {legMaterial}
-      </mesh>
-      <mesh position={[0.28, -2.25, 0]}>
-        <sphereGeometry args={[0.18, 20, 20]} />
-        {legMaterial}
-      </mesh>
-      <mesh position={[0.28, -2.32, 0.14]} scale={[0.85, 0.5, 1.6]}>
-        <sphereGeometry args={[0.2, 20, 20]} />
+      <Arm side={-1} />
+      <Arm side={1} />
+
+      {/* ноги — прямо вниз, единая капсула на каждую, скруглённый носок вместо стопы */}
+      <mesh position={[-0.24, -0.85, 0]}>
+        <capsuleGeometry args={[0.24, 1.7, 8, 16]} />
         {glossy}
+      </mesh>
+      <mesh position={[-0.24, -1.85, 0]}>
+        <sphereGeometry args={[0.24, 20, 20]} />
+        {glossy}
+      </mesh>
+
+      <mesh position={[0.24, -0.85, 0]}>
+        <capsuleGeometry args={[0.24, 1.7, 8, 16]} />
+        {legMaterial}
+      </mesh>
+      <mesh position={[0.24, -1.85, 0]}>
+        <sphereGeometry args={[0.24, 20, 20]} />
+        {legMaterial}
       </mesh>
       {/* маркер-подсветка сустава колена */}
-      <mesh position={[0.3, -1.55, 0.24]}>
-        <sphereGeometry args={[0.15, 20, 20]} />
+      <mesh position={[0.26, -1.2, 0.26]}>
+        <sphereGeometry args={[0.16, 20, 20]} />
         {legMaterial}
       </mesh>
     </group>
   );
 };
 
+const LookAtCamera: React.FC<{camY: number; camZ: number}> = ({camY, camZ}) => {
+  const {camera} = useThree();
+  useFrame(() => {
+    camera.position.set(0, camY, camZ);
+    camera.lookAt(0, 0.6, 0);
+  });
+  return null;
+};
+
 const XrayScene: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
   const f = useCurrentFrame();
-  const camZ = interpolate(f, [0, 60], [19, 16], {extrapolateRight: 'clamp'});
+  const camZ = interpolate(f, [0, 60], [5.6, 4.6], {extrapolateRight: 'clamp'});
+  const camY = 3.1;
   return (
     <ThreeCanvas linear width={1080} height={1920} style={{background: '#0A0A0C'}}>
       <ambientLight intensity={0.5} />
       <pointLight position={[3, 5, 5]} intensity={140} color="#ffffff" />
       <pointLight position={[-3, 1, 4]} intensity={70} color={T.accent} />
       <pointLight position={[0, -2, 5]} intensity={50} color="#ffffff" />
-      <perspectiveCamera makeDefault position={[0, 2.6, camZ]} fov={42} />
+      <perspectiveCamera makeDefault position={[0, camY, camZ]} fov={40} />
+      <LookAtCamera camY={camY} camZ={camZ} />
       <GlowFigure highlightFrame={highlightFrame} />
     </ThreeCanvas>
   );
