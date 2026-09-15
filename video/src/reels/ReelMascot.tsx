@@ -90,7 +90,13 @@ const ChaosScene: React.FC = () => {
 };
 
 // Маскот: капсула-таблетка с глазками, squash&stretch на прыжках.
-const Mascot: React.FC<{x: number; y: number; squash: number; wave?: boolean}> = ({x, y, squash, wave}) => {
+const Mascot: React.FC<{x: number; y: number; squash: number; wave?: boolean; scale?: number}> = ({
+  x,
+  y,
+  squash,
+  wave,
+  scale = 1,
+}) => {
   const f = useCurrentFrame();
   const blink = Math.sin(f / 14) > 0.96 ? 0.15 : 1;
   const armSwing = wave ? Math.sin(f / 4) * 25 : 0;
@@ -100,7 +106,7 @@ const Mascot: React.FC<{x: number; y: number; squash: number; wave?: boolean}> =
         position: 'absolute',
         left: x,
         top: y,
-        transform: `translate(-50%,-50%) scaleX(${1 / squash}) scaleY(${squash})`,
+        transform: `translate(-50%,-50%) scale(${scale}) scaleX(${1 / squash}) scaleY(${squash})`,
       }}
     >
       <div
@@ -261,8 +267,10 @@ const FinaleUI: React.FC = () => {
               gap: 16,
             }}
           >
-            <Mascot x={30} y={30} squash={1} wave />
-            <div style={{fontSize: 26, color: '#EAF1F7', fontWeight: 600, marginLeft: 40}}>
+            <div style={{position: 'relative', width: 44, height: 60, flexShrink: 0, overflow: 'visible'}}>
+              <Mascot x={22} y={30} squash={1} wave scale={0.34} />
+            </div>
+            <div style={{fontSize: 26, color: '#EAF1F7', fontWeight: 600}}>
               Время принять таблетку 💊
             </div>
           </div>
@@ -277,9 +285,16 @@ const FamilyBonus: React.FC = () => {
   const s = spring({frame: f, fps: 30, config: {damping: 200, mass: 1.2}});
   return (
     <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', background: T.bg}}>
-      <div style={{opacity: s, transform: `scale(${interpolate(s, [0, 1], [0.9, 1])})`, textAlign: 'center'}}>
-        <Mascot x={0} y={0} squash={1} wave />
-        <div style={{marginTop: 30}} />
+      <div
+        style={{
+          position: 'relative',
+          width: 200,
+          height: 260,
+          opacity: s,
+          transform: `scale(${interpolate(s, [0, 1], [0.9, 1])})`,
+        }}
+      >
+        <Mascot x={100} y={130} squash={1} wave />
       </div>
     </AbsoluteFill>
   );

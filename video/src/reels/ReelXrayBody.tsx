@@ -75,133 +75,102 @@ const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
     <meshStandardMaterial color={mannequin} metalness={0.15} roughness={0.12} envMapIntensity={1.4} />
   );
 
+  const legMaterial = (
+    <meshStandardMaterial
+      color={highlightActive ? T.bad : mannequin}
+      emissive={highlightActive ? T.bad : '#000000'}
+      emissiveIntensity={highlightActive ? 0.9 + pulse * 0.6 : 0}
+      metalness={0.15}
+      roughness={0.12}
+    />
+  );
+
+  // Все сегменты строго вертикальны (без наклона/смещения по Z), поэтому силуэт
+  // остаётся цельным при повороте камеры вокруг Y — швы не "разъезжаются".
   return (
     <group ref={group} position={[0, -0.3, 0]}>
       {/* голова — вытянутое яйцо, без лица */}
-      <mesh position={[0, 3.35, 0]} scale={[0.62, 0.86, 0.68]}>
+      <mesh position={[0, 3.4, 0]} scale={[0.62, 0.86, 0.68]}>
         <sphereGeometry args={[0.5, 32, 32]} />
         {glossy}
       </mesh>
       {/* шея */}
-      <mesh position={[0, 2.78, 0]}>
+      <mesh position={[0, 2.85, 0]}>
         <cylinderGeometry args={[0.18, 0.22, 0.3, 16]} />
         {glossy}
       </mesh>
-      {/* плечи/торс — сужение к талии */}
-      <mesh position={[0, 1.95, 0]} scale={[1.05, 1, 0.85]}>
-        <capsuleGeometry args={[0.58, 0.5, 8, 16]} />
+      {/* плечевые шарниры */}
+      <mesh position={[-0.56, 2.5, 0]}>
+        <sphereGeometry args={[0.22, 24, 24]} />
         {glossy}
       </mesh>
-      <mesh position={[0, 1.15, 0]} scale={[0.82, 1, 0.75]}>
-        <capsuleGeometry args={[0.42, 0.9, 8, 16]} />
+      <mesh position={[0.56, 2.5, 0]}>
+        <sphereGeometry args={[0.22, 24, 24]} />
         {glossy}
       </mesh>
-      {/* таз — плавный переход к ногам */}
-      <mesh position={[0, 0.35, 0]} scale={[1, 0.9, 0.85]}>
-        <capsuleGeometry args={[0.46, 0.3, 8, 16]} />
+      {/* торс — единая капсула от плеч до таза */}
+      <mesh position={[0, 1.3, 0]} scale={[1, 1, 0.85]}>
+        <capsuleGeometry args={[0.55, 1.4, 8, 16]} />
         {glossy}
       </mesh>
-
-      {/* плечевые шарниры — скрывают шов рука/торс */}
-      <mesh position={[-0.58, 2.15, 0]}>
-        <sphereGeometry args={[0.19, 24, 24]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.58, 2.15, 0]}>
-        <sphereGeometry args={[0.19, 24, 24]} />
-        {glossy}
-      </mesh>
-      {/* плечо → предплечье, две секции с локтевым шарниром для лёгкого сгиба */}
-      <mesh position={[-0.66, 1.55, 0.03]} rotation={[0, 0, 0.06]}>
-        <capsuleGeometry args={[0.135, 0.85, 8, 16]} />
-        {glossy}
-      </mesh>
-      <mesh position={[-0.7, 0.78, 0.1]}>
-        <sphereGeometry args={[0.12, 20, 20]} />
-        {glossy}
-      </mesh>
-      <mesh position={[-0.72, 0.35, 0.13]} rotation={[0.08, 0, 0.02]}>
-        <capsuleGeometry args={[0.115, 0.75, 8, 16]} />
-        {glossy}
-      </mesh>
-      <mesh position={[-0.73, -0.1, 0.16]}>
-        <sphereGeometry args={[0.11, 18, 18]} />
-        {glossy}
-      </mesh>
-
-      <mesh position={[0.66, 1.55, -0.03]} rotation={[0, 0, -0.06]}>
-        <capsuleGeometry args={[0.135, 0.85, 8, 16]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.7, 0.78, -0.1]}>
-        <sphereGeometry args={[0.12, 20, 20]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.72, 0.35, -0.13]} rotation={[0.08, 0, -0.02]}>
-        <capsuleGeometry args={[0.115, 0.75, 8, 16]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.73, -0.1, -0.16]}>
-        <sphereGeometry args={[0.11, 18, 18]} />
-        {glossy}
-      </mesh>
-
       {/* тазобедренные шарниры */}
-      <mesh position={[-0.26, 0.1, -0.05]}>
-        <sphereGeometry args={[0.21, 24, 24]} />
+      <mesh position={[-0.28, 0.05, 0]}>
+        <sphereGeometry args={[0.24, 24, 24]} />
         {glossy}
       </mesh>
-      <mesh position={[0.26, 0.1, 0.05]}>
-        <sphereGeometry args={[0.21, 24, 24]} />
+      <mesh position={[0.28, 0.05, 0]}>
+        <sphereGeometry args={[0.24, 24, 24]} />
         {glossy}
       </mesh>
 
-      {/* нога опорная */}
-      <mesh position={[-0.24, -1.15, -0.1]} rotation={[0.05, 0, 0]}>
-        <capsuleGeometry args={[0.2, 2.0, 8, 16]} />
+      {/* руки — прямо вдоль тела, без сгиба и смещения по Z */}
+      <mesh position={[-0.68, 1.35, 0]}>
+        <capsuleGeometry args={[0.14, 2.3, 8, 16]} />
         {glossy}
       </mesh>
-      <mesh position={[-0.26, -2.2, -0.14]}>
+      <mesh position={[-0.68, 0.06, 0]}>
+        <sphereGeometry args={[0.13, 18, 18]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.68, 1.35, 0]}>
+        <capsuleGeometry args={[0.14, 2.3, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[0.68, 0.06, 0]}>
+        <sphereGeometry args={[0.13, 18, 18]} />
+        {glossy}
+      </mesh>
+
+      {/* ноги — прямо вниз, единая капсула на каждую */}
+      <mesh position={[-0.28, -1.15, 0]}>
+        <capsuleGeometry args={[0.22, 1.9, 8, 16]} />
+        {glossy}
+      </mesh>
+      <mesh position={[-0.28, -2.25, 0]}>
         <sphereGeometry args={[0.18, 20, 20]} />
         {glossy}
       </mesh>
-      <mesh position={[-0.22, -2.28, 0.08]} scale={[0.85, 0.5, 1.6]}>
+      <mesh position={[-0.28, -2.32, 0.14]} scale={[0.85, 0.5, 1.6]}>
         <sphereGeometry args={[0.2, 20, 20]} />
         {glossy}
       </mesh>
 
-      {/* нога шаговая — подсвечиваемый сустав у колена */}
-      <mesh position={[0.26, -0.62, 0.35]} rotation={[-0.35, 0, 0]}>
-        <capsuleGeometry args={[0.2, 0.95, 8, 16]} />
+      <mesh position={[0.28, -1.15, 0]}>
+        <capsuleGeometry args={[0.22, 1.9, 8, 16]} />
+        {legMaterial}
+      </mesh>
+      <mesh position={[0.28, -2.25, 0]}>
+        <sphereGeometry args={[0.18, 20, 20]} />
+        {legMaterial}
+      </mesh>
+      <mesh position={[0.28, -2.32, 0.14]} scale={[0.85, 0.5, 1.6]}>
+        <sphereGeometry args={[0.2, 20, 20]} />
         {glossy}
       </mesh>
-      <mesh position={[0.26, -1.15, 0.62]}>
-        <sphereGeometry args={[0.19, 22, 22]} />
-        <meshStandardMaterial
-          color={highlightActive ? T.bad : mannequin}
-          emissive={highlightActive ? T.bad : '#000000'}
-          emissiveIntensity={highlightActive ? 0.9 + pulse * 0.6 : 0}
-          metalness={0.15}
-          roughness={0.12}
-        />
-      </mesh>
-      <mesh position={[0.26, -1.55, 0.55]} rotation={[0.15, 0, 0]}>
-        <capsuleGeometry args={[0.19, 0.95, 8, 16]} />
-        <meshStandardMaterial
-          color={highlightActive ? T.bad : mannequin}
-          emissive={highlightActive ? T.bad : '#000000'}
-          emissiveIntensity={highlightActive ? 0.9 + pulse * 0.6 : 0}
-          metalness={0.15}
-          roughness={0.12}
-        />
-      </mesh>
-      <mesh position={[0.27, -2.02, 0.5]}>
-        <sphereGeometry args={[0.17, 20, 20]} />
-        {glossy}
-      </mesh>
-      <mesh position={[0.3, -2.1, 0.7]} scale={[0.8, 0.5, 1.6]}>
-        <sphereGeometry args={[0.19, 20, 20]} />
-        {glossy}
+      {/* маркер-подсветка сустава колена */}
+      <mesh position={[0.3, -1.55, 0.24]}>
+        <sphereGeometry args={[0.15, 20, 20]} />
+        {legMaterial}
       </mesh>
     </group>
   );
@@ -209,14 +178,14 @@ const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
 
 const XrayScene: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
   const f = useCurrentFrame();
-  const camZ = interpolate(f, [0, 60], [14, 11], {extrapolateRight: 'clamp'});
+  const camZ = interpolate(f, [0, 60], [19, 16], {extrapolateRight: 'clamp'});
   return (
     <ThreeCanvas linear width={1080} height={1920} style={{background: '#0A0A0C'}}>
       <ambientLight intensity={0.5} />
       <pointLight position={[3, 5, 5]} intensity={140} color="#ffffff" />
       <pointLight position={[-3, 1, 4]} intensity={70} color={T.accent} />
       <pointLight position={[0, -2, 5]} intensity={50} color="#ffffff" />
-      <perspectiveCamera makeDefault position={[0, 1.6, camZ]} fov={50} />
+      <perspectiveCamera makeDefault position={[0, 2.6, camZ]} fov={42} />
       <GlowFigure highlightFrame={highlightFrame} />
     </ThreeCanvas>
   );
