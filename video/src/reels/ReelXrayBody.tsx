@@ -138,7 +138,7 @@ const GlowFigure: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
     <group ref={group} position={[0, -0.1, 0]}>
       {/* голова — круглая, сидит прямо на плечах, без шеи */}
       <mesh position={[0, 2.98, 0]}>
-        <sphereGeometry args={[0.66, 32, 32]} />
+        <sphereGeometry args={[0.48, 32, 32]} />
         {glossy}
       </mesh>
       {/* торс — единая капсула от плеч до таза */}
@@ -197,8 +197,8 @@ const LookAtCamera: React.FC<{camY: number; camZ: number}> = ({camY, camZ}) => {
 
 const XrayScene: React.FC<{highlightFrame: number}> = ({highlightFrame}) => {
   const f = useCurrentFrame();
-  const camZ = interpolate(f, [0, 60], [5.6, 4.6], {extrapolateRight: 'clamp'});
-  const camY = 3.1;
+  const camZ = interpolate(f, [0, 60], [7.28, 5.98], {extrapolateRight: 'clamp'});
+  const camY = 4.03;
   return (
     <ThreeCanvas linear width={1080} height={1920} style={{background: '#0A0A0C'}}>
       <ambientLight intensity={0.5} />
