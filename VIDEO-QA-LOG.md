@@ -81,3 +81,12 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-15T12:34:48Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-15 (run blocked — egress policy denial)
+
+- `WEBAPP_URL` and `ADMIN_KEY` were both provided for this run.
+- The session's outbound network policy rejected the connection to `me-webapp.pages.dev:443` (CONNECT tunnel failed with HTTP 403 from the egress proxy — organization policy denial, not a transient error).
+- Per proxy guidance, policy denials must be reported, not retried or routed around.
+- No request reached `/api/queue`, so no reels were listed, downloaded, checked, or decided in this run. Nothing was modified in the bot's queue.
+
+**Action needed:** allowlist `me-webapp.pages.dev` for this session's/environment's egress policy so the scheduled QA gate can reach the API.
