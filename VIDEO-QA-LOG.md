@@ -93,3 +93,10 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-16T12:35:35Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-16T12:50:23Z — run blocked by egress policy
+- `WEBAPP_URL` and `ADMIN_KEY` were both provided for this run.
+- `GET $WEBAPP_URL/api/queue?status=pending&kind=reel` failed: the session's outbound-network proxy rejected the CONNECT to `me-webapp.pages.dev:443` with HTTP 403 (organization egress policy denial), before any request reached the backend.
+- Per proxy guidance, a 403/407 policy denial must be reported, not retried or routed around — no queue data was fetched, no reels were downloaded or scored, and no approve/reject decisions were made.
+
+**Action needed:** allow `me-webapp.pages.dev` (or the workflow's actual WEBAPP_URL host) in this environment's egress allowlist so scheduled runs from this session type can reach the backend. (Earlier runs in this log that show real pending-reel activity ran from GitHub Actions, which is not subject to this session's proxy.)
