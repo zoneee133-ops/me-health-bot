@@ -87,3 +87,11 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-16T00:35:10Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-16T00:50:57Z — Claude Code cloud session (run skipped — network policy)
+- `WEBAPP_URL` and `ADMIN_KEY` were provided for this run.
+- `ffmpeg`/`ffprobe` were installed and ready.
+- Outbound HTTPS to `me-webapp.pages.dev` was blocked by this session's egress proxy with `403 CONNECT tunnel failed` (`connect_rejected` — organization network policy denies this destination from this environment).
+- Could not reach `GET /api/queue` or `POST /api/queue-decide`. No reels were listed, downloaded, checked, or decided in this run. Nothing in the bot's queue was modified.
+
+**Action needed:** this session's network egress policy does not allow requests to `me-webapp.pages.dev`; the GitHub Actions run of this same QA job (see entries above) has working access and should keep covering the 12-hour cadence.
