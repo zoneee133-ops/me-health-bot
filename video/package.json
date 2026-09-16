@@ -7,10 +7,10 @@
     "render": "remotion render MePromo out/me-promo.mp4"
   },
   "dependencies": {
-    "@remotion/cli": "^4.0.523",
+    "@remotion/cli": "^4.0.525",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "remotion": "^4.0.523"
+    "remotion": "^4.0.525"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
