@@ -105,3 +105,8 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-17T12:51:22Z — run skipped (egress blocked)
+- `WEBAPP_URL` and `ADMIN_KEY` were provided, but this run's environment egress policy denied the outbound connection to `me-webapp.pages.dev:443` (proxy returned 403 CONNECT — org policy denial, not a DNS/TLS/app-level failure).
+- Could not query `/api/queue`, so no reels were downloaded, checked, or decided in this run. No changes were made to the bot's queue.
+- **Action needed:** allow outbound HTTPS to `me-webapp.pages.dev` for this scheduled task's environment/network policy so future cloud runs can reach the webapp.
