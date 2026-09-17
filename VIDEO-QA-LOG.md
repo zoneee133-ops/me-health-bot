@@ -99,3 +99,25 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T00:35:56Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-17T00:51:41Z — cloud QA agent run (blocked — egress policy)
+- `WEBAPP_URL` and `ADMIN_KEY` were both provided to this run.
+- The outbound HTTPS request to `$WEBAPP_URL/api/queue` was rejected before
+  it reached the server: the session's egress proxy returned `403` on the
+  CONNECT tunnel to `me-webapp.pages.dev:443` ("gateway answered 403 to
+  CONNECT (policy denial or upstream failure)"), confirmed via the proxy's
+  own status endpoint. This is a network egress policy restriction on this
+  execution environment, not a missing-config or application-level issue.
+- No queue request was made, no videos were downloaded or inspected, and no
+  `queue-decide` calls were made. No reel statuses were changed.
+- `ffmpeg`/`ffprobe` were installed successfully in this environment and are
+  ready for the next run once egress to the webapp host is allowed.
+- Note: a separate `github-actions[bot]` workflow appears to run this same
+  QA gate on its own schedule and successfully reaches `$WEBAPP_URL` (see
+  the run immediately above, and prior entries) — the reel queue is likely
+  still being serviced by that path even while this cloud session is
+  blocked.
+
+**Action needed:** allow outbound HTTPS to the webapp host (`me-webapp.pages.dev`)
+in this session's/environment's egress policy so future cloud QA runs can
+reach `$WEBAPP_URL`.
