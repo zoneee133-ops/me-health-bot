@@ -105,3 +105,7 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-18T12:50:56Z — Claude Code cloud session run
+- ERROR: не удалось подключиться к WEBAPP_URL (https://me-webapp.pages.dev) — прокси вернул 403 на CONNECT (egress-политика этой облачной сессии блокирует хост). Проверки не выполнялись, решения по элементам очереди не принимались.
+- Действие: ничего не изменено в очереди; требуется либо разрешить хост в egress-политике сессии, либо продолжать запускать этот QA через прежний раннер (GitHub Actions).
