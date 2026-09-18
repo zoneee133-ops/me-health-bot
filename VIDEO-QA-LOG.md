@@ -105,3 +105,12 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-18T00:51:41Z — run skipped (egress blocked)
+- `WEBAPP_URL` and `ADMIN_KEY` were provided for this run.
+- ffmpeg/ffprobe installed successfully; ready to run video checks.
+- Outbound HTTPS to `me-webapp.pages.dev` was rejected by this session's network policy: the local egress proxy answered `403 Forbidden` on the CONNECT tunnel (policy denial), so `GET /api/queue?status=pending&kind=reel` could not be attempted.
+- Per policy, blocked/denied hosts are not retried or routed around in this environment.
+- No queue was read, no videos were downloaded or checked, and no approve/reject decisions were made. The bot's queue is untouched.
+
+**Action needed:** allow outbound HTTPS to the ME webapp host in this session's/environment's network egress policy so future scheduled runs can reach `$WEBAPP_URL`.
