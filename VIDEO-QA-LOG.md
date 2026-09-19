@@ -105,3 +105,9 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-19T12:50Z — Claude Code cloud session run
+- `WEBAPP_URL` and `ADMIN_KEY` were provided for this run, but outbound network access from this session's sandbox to `me-webapp.pages.dev` was rejected by the environment's egress proxy (`CONNECT tunnel failed, response 403` / policy denial), not by missing config or by the target server.
+- Could not reach `GET /api/queue?status=pending&kind=reel`, so no reels were listed, downloaded, checked with ffmpeg/ffprobe, or decided in this run.
+- No queue state was modified.
+- **Action needed:** run this QA gate from an environment whose network policy allows egress to `me-webapp.pages.dev` (e.g. the existing GitHub Actions workflow), or update this session's environment network policy to allow that host.
