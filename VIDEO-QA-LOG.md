@@ -105,3 +105,8 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-19T00:51:44Z — Claude Code cloud session run
+- WEBAPP_URL and ADMIN_KEY were provided; GET /api/queue?status=pending&kind=reel could not be attempted end-to-end because this session's outbound network egress policy blocked the CONNECT tunnel to the webapp host (proxy returned 403 "destination host not allowed by organization egress policy"). No queue items were fetched, so nothing was inspected or decided; no reel statuses were touched.
+- ffmpeg/ffprobe were installed successfully in this session and are ready for the next run where egress to the webapp host is permitted.
+- Action needed: this session type (Claude Code cloud sandbox) needs the webapp host allow-listed in its egress policy, or this QA job should keep running from an environment (e.g. GitHub Actions) that already has network access to it.
