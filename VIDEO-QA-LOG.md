@@ -105,3 +105,12 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-20T12:51:53Z — cloud QA run (run skipped — egress blocked)
+
+- `WEBAPP_URL` and `ADMIN_KEY` were both provided for this run.
+- `ffmpeg`/`ffprobe` were installed successfully in the sandbox.
+- The outbound request to `GET $WEBAPP_URL/api/queue?status=pending&kind=reel` never reached the app: this session's network egress proxy rejected the CONNECT to `me-webapp.pages.dev:443` with `403` (`gateway answered 403 to CONNECT (policy denial or upstream failure)`), i.e. the sandbox's network policy blocks this host outright, before any request (and before `ADMIN_KEY`) is sent.
+- Per the proxy's own guidance, a `403` policy denial must be reported rather than retried or routed around, so no queue was fetched, no videos were downloaded, and no approve/reject decisions were made this run. Nothing in the bot's queue was touched.
+
+**Action needed:** allow this session's egress policy to reach `me-webapp.pages.dev` (or run this QA job from an environment whose network policy permits it), then re-run.
