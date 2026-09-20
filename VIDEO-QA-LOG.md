@@ -105,3 +105,11 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-20T00:51:40Z — run blocked by network policy
+
+- `WEBAPP_URL` and `ADMIN_KEY` were both provided this run.
+- The sandbox's outbound egress proxy rejected the connection to `me-webapp.pages.dev:443` with `CONNECT` → `403 Forbidden` (`connect_rejected`, organization policy denial), before any request reached the API. Same result for both a plain reachability check and the actual `GET /api/queue` call.
+- Could not query the pending-reel queue, so no items were checked, downloaded, or decided. No approve/reject calls were made and nothing in the bot's queue was touched.
+
+**Action needed:** allow outbound HTTPS to the webapp host (`me-webapp.pages.dev`) from this environment's egress policy so future scheduled runs can reach `/api/queue` and `/api/queue-decide`.
