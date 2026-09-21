@@ -105,3 +105,33 @@ Cannot query the queue or make any approve/reject decisions without both. No ree
 
 ## 2026-09-17T12:34:58Z — GitHub Actions run
 - pending reels: 0
+
+## 2026-09-21 (run blocked — cloud session egress policy)
+
+- `WEBAPP_URL` / `ADMIN_KEY` were not set as environment variables on this
+  session; they were instead pasted as plaintext inside the scheduled
+  Routine's stored prompt text. That is a credential-handling issue on its
+  own (see note below) independent of the network result.
+- Confirmed reachability regardless: `GET me-webapp.pages.dev` (and a
+  control check against `cloudflare.com`) both fail with `curl: (56) CONNECT
+  tunnel failed, response 403` — the egress proxy rejects the CONNECT
+  (`connect_rejected`, organization policy), same as the long-running issue
+  already tracked in `HEALTH-LOG.md` for this project's Cloudflare Pages
+  domain from cloud sessions.
+- No queue was fetched, no video was downloaded or probed, and no
+  `queue-decide` call was made. Nothing in the bot's queue was modified.
+- ffmpeg/ffprobe are also not installed in this session's image; not
+  exercised since the queue call never succeeded.
+
+**Security note:** please stop storing the live `ADMIN_KEY` value as literal
+text in the Routine's prompt — it persists in the trigger's stored
+configuration every time it fires and is unnecessary exposure. Configure it
+as a real environment variable/secret on the environment instead (and
+rotate this key since it has now been pasted in plaintext into a stored
+prompt). The key from this run's prompt was not written anywhere in this
+repo or in any log/commit.
+
+**Action needed:** unblock egress to `*.pages.dev` for this environment (or
+run this QA gate somewhere with that access, e.g. GitHub Actions as most
+prior successful runs did), and set `WEBAPP_URL`/`ADMIN_KEY` as proper
+environment variables rather than inline prompt text.
