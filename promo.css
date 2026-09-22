@@ -1,0 +1,453 @@
+/* ============================================================
+   Me — promo landing page
+   Brand tokens (reused exactly from webapp/legal.css)
+   ============================================================ */
+:root{
+  --bg:#F6F6F6;
+  --bg-warm:#F0E7D5;
+  --ink:#151515;
+  --ink2:#6b6b6b;
+  --acc:#7E9A97;
+  --card:#fff;
+  --bd:rgba(0,0,0,.12);
+
+  --font-serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font:16px/1.6 var(--font-sans);
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--acc)}
+h1,h2{font-family:var(--font-serif);font-weight:600;margin:0}
+img{max-width:100%;display:block}
+
+/* fixed quick-access dock — bot / channel / instagram, reachable from
+   anywhere on the page regardless of scroll position or active tab */
+.promo-social-dock{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:50;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
+}
+.promo-social-dock a{
+  font-size:12.5px;
+  font-weight:600;
+  text-decoration:none;
+  color:var(--ink);
+  background:var(--card);
+  padding:9px 16px;
+  border-radius:999px;
+  box-shadow:0 6px 16px -8px rgba(0,0,0,.25);
+  white-space:nowrap;
+  transition:transform .2s ease, background .2s ease;
+}
+.promo-social-dock a:hover{transform:translateY(-1px)}
+@media (max-width:640px){
+  .promo-social-dock{right:12px;bottom:12px}
+  .promo-social-dock a{font-size:11.5px;padding:8px 12px}
+}
+
+/* ============================================================
+   Hero — single static screen, matches reference 1:1: nav, pill
+   toggle, meta block top-left, one focus object with side accents.
+   ============================================================ */
+.promo-hero{
+  position:relative;
+  width:100%;
+  margin:0;
+  padding:24px 32px 40px;
+  min-height:100vh;
+  min-height:100svh;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+}
+
+.promo-nav{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  margin:0 0 8px;
+}
+.promo-nav-links{display:flex;align-items:center;gap:28px}
+.promo-nav-links a{
+  font-size:13px;
+  font-weight:500;
+  text-decoration:none;
+  color:var(--ink2);
+  white-space:nowrap;
+}
+.promo-nav-links a.is-current{color:var(--ink);font-weight:600}
+
+/* top view switcher: main hero <-> "Спросили Me" — secondary row, small */
+.promo-view-tabs{
+  display:flex;
+  gap:6px;
+  width:max-content;
+  margin:0 0 12px;
+  padding:4px;
+  background:var(--card);
+  border-radius:999px;
+  box-shadow:0 6px 16px -12px rgba(0,0,0,.2);
+}
+.promo-view-tabs button{
+  font:inherit;
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--ink2);
+  background:none;
+  border:none;
+  padding:7px 16px;
+  border-radius:999px;
+  cursor:pointer;
+  transition:background .2s ease,color .2s ease;
+}
+.promo-view-tabs button.is-active{background:var(--acc);color:#fff}
+
+.promo-view{display:none}
+.promo-view.is-shown{display:block}
+.promo-view[data-view="main"].is-shown{display:flex;flex-direction:column;flex:1}
+
+/* ============================================================
+   Pin-scroll roulette: 5 items on a 3D orbit, cycled by scroll
+   position within a tall pinned section (see promo.js).
+   ============================================================ */
+.promo-roulette-pin{
+  position:relative;
+  height:500vh; /* scroll distance to cycle all 5 items */
+}
+.promo-roulette-stage{
+  position:sticky;
+  top:0;
+  height:100vh;
+  padding:0 32px;
+}
+
+/* ---- meta panel: monumental serif title, thin dividers — pinned near
+   the top so the diagonal objects travel underneath, never over it. ---- */
+.promo-meta{
+  position:absolute;
+  top:8%;
+  left:32px;
+  max-width:460px;
+  text-align:left;
+  z-index:5;
+}
+.promo-meta-title{
+  font-family:var(--font-serif);
+  font-weight:600;
+  font-size:clamp(48px,7vw,104px);
+  line-height:1;
+  letter-spacing:-.01em;
+  color:var(--ink);
+  margin:0 0 22px;
+  text-transform:uppercase;
+}
+.promo-meta-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:16px;
+  padding:8px 0;
+  border-top:1px solid var(--bd);
+  font-size:13px;
+  color:var(--ink);
+  max-width:400px;
+}
+.promo-meta-row span:last-child{text-align:right}
+.promo-meta-label{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink2);
+  white-space:nowrap;
+}
+
+/* cross-fade + blur text swap (headline, specialization, quote) as the
+   active roulette item changes — outgoing text dissolves upward into
+   fog, incoming rises out of fog from below. */
+.promo-meta-fade{
+  display:inline-block;
+  transition:opacity .5s cubic-bezier(0.16,1,0.3,1), filter .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1);
+}
+.promo-meta-fade.is-out{opacity:0;filter:blur(10px);transform:translateY(-14px)}
+.promo-meta-fade.is-in{opacity:0;filter:blur(10px);transform:translateY(14px)}
+
+/* ---- roulette track: spans the full screen width, no clipping — items
+   fly all the way across on their diagonal, sitting below the pinned
+   meta text (see the Y base-offset in promo.js) instead of being cut
+   off by a column edge. ---- */
+.promo-roulette-track{position:absolute;inset:0;width:100%;height:100%}
+.promo-r-item{
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:min(46vw,650px);
+  will-change:transform,opacity,filter;
+}
+.promo-r-item img{width:100%;height:auto;filter:drop-shadow(0 28px 40px rgba(0,0,0,.2))}
+
+/* hand-drawn circle annotation — every one of the 5 items carries its own
+   ring; only the active item's is visible, so as the roulette turns the
+   outline appears to fly from object to object rather than sitting fixed
+   on one of them. */
+.promo-card-ring{
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:108%;
+  height:126%;
+  transform:translate(-50%,-50%) rotate(-3deg);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .8s cubic-bezier(0.16,1,0.3,1);
+}
+.promo-r-item.is-active .promo-card-ring{opacity:1}
+.promo-card-ring path{
+  stroke-dasharray:1000;
+  stroke-dashoffset:1000;
+  transition:stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1);
+}
+.promo-r-item.is-active .promo-card-ring path{stroke-dashoffset:0}
+
+/* ---- quote block: bottom-right, clear of the oval outline's arc ---- */
+.promo-quote{
+  position:absolute;
+  bottom:8vh;
+  right:5%;
+  max-width:340px;
+  text-align:left;
+  z-index:5;
+}
+.promo-quote-tag{
+  margin:0 0 10px;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink);
+}
+.promo-quote-text{
+  margin:0 0 8px;
+  font-size:14px;
+  line-height:1.5;
+  color:var(--ink);
+}
+.promo-quote-author{
+  margin:0 0 16px;
+  font-size:13px;
+  color:var(--ink2);
+}
+.promo-quote-cta{
+  display:inline-block;
+  padding:11px 20px;
+  background:var(--ink);
+  color:#fff;
+  font-weight:600;
+  font-size:13px;
+  text-decoration:none;
+  border-radius:999px;
+  transition:transform .2s ease, background .2s ease;
+}
+.promo-quote-cta:hover{background:#333;transform:translateY(-1px)}
+
+@media (max-width:900px){
+  .promo-meta{max-width:90vw;top:8%}
+  .promo-meta-title{font-size:clamp(36px,10vw,64px)}
+  .promo-r-item{width:60vw}
+  .promo-quote{left:50%;right:auto;transform:translateX(-50%);bottom:4vh;max-width:86vw;text-align:center}
+}
+
+/* ============================================================
+   Staggered reveal on scroll (IntersectionObserver adds
+   .is-visible to the .promo-reveal ancestor; children fade+rise
+   with a per-child stagger delay set via nth-child below).
+   ============================================================ */
+.promo-reveal-item{
+  opacity:0;
+  transform:translateY(60px) scale(0.98);
+  filter:blur(20px);
+  transition:opacity 1.6s cubic-bezier(0.16,1,0.3,1), transform 1.6s cubic-bezier(0.16,1,0.3,1), filter 1.4s cubic-bezier(0.16,1,0.3,1);
+}
+.promo-reveal.is-visible .promo-reveal-item{opacity:1;transform:translateY(0) scale(1);filter:blur(0px)}
+.promo-reveal .promo-reveal-item:nth-of-type(1){transition-delay:0s}
+.promo-reveal .promo-reveal-item:nth-of-type(2){transition-delay:.1s}
+.promo-reveal .promo-reveal-item:nth-of-type(3){transition-delay:.2s}
+.promo-about-cards .promo-reveal-item:nth-of-type(1){transition-delay:.2s}
+.promo-about-cards .promo-reveal-item:nth-of-type(2){transition-delay:.35s}
+.promo-about-cards .promo-reveal-item:nth-of-type(3){transition-delay:.5s}
+.promo-goals-grid .promo-reveal-item:nth-of-type(1){transition-delay:.1s}
+.promo-goals-grid .promo-reveal-item:nth-of-type(2){transition-delay:.25s}
+.promo-goals-grid .promo-reveal-item:nth-of-type(3){transition-delay:.4s}
+
+/* ============================================================
+   About + Goals — new sections below the hero, plain scroll flow
+   ============================================================ */
+.promo-section-title{
+  font-family:var(--font-serif);
+  font-weight:600;
+  font-size:clamp(30px,4.5vw,52px);
+  line-height:1.15;
+  letter-spacing:-.01em;
+  text-transform:uppercase;
+  color:var(--ink);
+  margin:0 0 56px;
+}
+
+.promo-about{
+  max-width:1180px;
+  margin:0 auto;
+  padding:120px 32px;
+}
+.promo-about-grid{
+  display:grid;
+  grid-template-columns:1.1fr 1fr;
+  gap:64px;
+  align-items:start;
+}
+.promo-about-manifesto{
+  font-family:var(--font-serif);
+  font-size:clamp(22px,2.4vw,30px);
+  line-height:1.45;
+  color:var(--ink);
+  margin:0;
+}
+.promo-about-cards{display:flex;flex-direction:column}
+.promo-about-card{
+  padding:22px 0;
+  border-top:1px solid var(--bd);
+}
+.promo-about-cards .promo-about-card:last-child{border-bottom:1px solid var(--bd)}
+.promo-about-card-title{
+  margin:0 0 6px;
+  font-weight:700;
+  font-size:15px;
+  letter-spacing:.02em;
+  color:var(--ink);
+}
+.promo-about-card-text{
+  margin:0;
+  font-size:14.5px;
+  line-height:1.55;
+  color:var(--ink2);
+}
+
+.promo-goals{
+  max-width:1180px;
+  margin:0 auto;
+  padding:40px 32px 140px;
+}
+.promo-goals-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:40px;
+}
+.promo-goal{
+  padding-top:24px;
+  border-top:1px solid var(--bd);
+  transition:transform .3s ease;
+}
+.promo-goal:hover{transform:translateY(-4px)}
+.promo-goal-num{
+  display:block;
+  font-family:var(--font-serif);
+  font-weight:400;
+  font-size:15px;
+  color:var(--ink2);
+  margin-bottom:18px;
+}
+.promo-goal-title{
+  margin:0 0 10px;
+  font-family:var(--font-serif);
+  font-weight:600;
+  font-size:22px;
+  color:var(--ink);
+}
+.promo-goal-text{
+  margin:0;
+  font-size:14.5px;
+  line-height:1.55;
+  color:var(--ink2);
+}
+
+@media (max-width:900px){
+  .promo-about-grid{grid-template-columns:1fr;gap:36px}
+  .promo-goals-grid{grid-template-columns:1fr;gap:28px}
+  .promo-about,.promo-goals{padding-left:20px;padding-right:20px}
+}
+
+/* ============================================================
+   Q&A section (second tab)
+   ============================================================ */
+.promo-qa{
+  max-width:680px;
+  margin:0 auto;
+  padding:24px 20px 12px;
+}
+.promo-qa h2{
+  font-size:26px;
+  letter-spacing:-.01em;
+  margin-bottom:22px;
+  text-align:center;
+}
+.card{
+  background:var(--card);
+  border-radius:16px;
+  padding:16px 18px;
+  box-shadow:0 8px 24px -16px rgba(33,40,66,.3);
+  margin:14px 0;
+}
+.promo-qa-q{
+  margin:0 0 8px;
+  font-weight:700;
+  font-size:15px;
+  color:var(--ink);
+}
+.promo-qa-a{
+  margin:0;
+  font-size:14px;
+  line-height:1.6;
+  color:var(--ink2);
+}
+.promo-qa-more{
+  text-align:center;
+  font-size:14px;
+  color:var(--ink2);
+  margin:28px 0 0;
+}
+.promo-qa-more a{font-weight:600}
+
+/* ============================================================
+   Footer (lives inside the second tab only)
+   ============================================================ */
+.promo-footer{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:10px;
+  max-width:680px;
+  margin:56px auto 0;
+  padding:24px 20px 40px;
+  border-top:1px solid var(--bd);
+}
+.promo-footer a{
+  font-size:13px;
+  text-decoration:none;
+  color:var(--ink2);
+  background:var(--card);
+  padding:7px 14px;
+  border-radius:999px;
+  box-shadow:0 6px 16px -12px rgba(33,40,66,.3);
+}

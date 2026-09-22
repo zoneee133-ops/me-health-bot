@@ -1,0 +1,153 @@
+<!doctype html><html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Me — анализы и рецепты простыми словами</title>
+<meta name="description" content="Me — Telegram-бот, который объясняет анализы, рецепты и заключения врачей простым языком, хранит историю анализов и напоминает про приём лекарств. Бесплатно, без регистрации.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237E9A97'/%3E%3Cpath d='M32 14c3 10 8 15 18 18-10 3-15 8-18 18-3-10-8-15-18-18 10-3 15-8 18-18z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="promo.css">
+</head><body>
+
+<div class="promo-social-dock">
+  <a href="https://t.me/me_zdorovie" target="_blank" rel="noopener">Канал в Telegram</a>
+  <a href="https://instagram.com/me_abouthealth" target="_blank" rel="noopener">Instagram</a>
+</div>
+
+<section class="promo-hero" id="promoHero">
+  <header class="promo-nav">
+    <nav class="promo-nav-links">
+      <a href="../" class="is-current">Me</a>
+      <a href="https://t.me/me_abouthealth_bot?startapp=health" target="_blank" rel="noopener">Здоровье</a>
+      <a href="https://t.me/me_abouthealth_bot?startapp=health" target="_blank" rel="noopener">Отчёты</a>
+      <a href="https://t.me/me_abouthealth_bot?startapp=profile" target="_blank" rel="noopener">Профиль</a>
+    </nav>
+  </header>
+
+  <div class="promo-view-tabs" id="promoViewTabs">
+    <button type="button" class="is-active" data-view="main">Главный экран</button>
+    <button type="button" data-view="qa">Спросили Me</button>
+  </div>
+
+  <div class="promo-view is-shown" data-view="main">
+    <div class="promo-roulette-pin" id="roulettePin">
+      <div class="promo-roulette-stage">
+        <div class="promo-meta">
+          <h1 class="promo-meta-title promo-meta-fade" id="rouletteTitle">Заключение врача</h1>
+          <div class="promo-meta-row"><span class="promo-meta-label">ОСНОВАТЕЛЬ</span><span>Me</span></div>
+          <div class="promo-meta-row"><span class="promo-meta-label">ГОД</span><span>2026</span></div>
+          <div class="promo-meta-row"><span class="promo-meta-label">СПЕЦИАЛИЗАЦИЯ</span><span id="rouletteVal3" class="promo-meta-fade">Расшифровка снимков</span></div>
+        </div>
+
+        <div class="promo-roulette-track" id="rouletteTrack">
+          <div class="promo-r-item" data-card="halat">
+            <img src="cards/halat.png" alt="Медицинский халат Me AI" onerror="this.style.display='none'">
+            <svg class="promo-card-ring" viewBox="0 0 220 220" preserveAspectRatio="none" fill="none" stroke="#2C2C2E" stroke-linecap="round">
+              <path pathLength="1000" d="M62,34 C24,52 8,92 20,130 C34,172 78,200 124,194 C168,188 202,150 206,106 C210,68 184,28 142,16 C112,8 84,10 62,34" stroke-width="1.5" opacity="0.6"/>
+            </svg>
+          </div>
+          <div class="promo-r-item" data-card="syringe">
+            <img src="cards/bloodbag.png" alt="Шприц и флакон анализа" onerror="this.style.display='none'">
+            <svg class="promo-card-ring" viewBox="0 0 220 220" preserveAspectRatio="none" fill="none" stroke="#2C2C2E" stroke-linecap="round">
+              <path pathLength="1000" d="M62,34 C24,52 8,92 20,130 C34,172 78,200 124,194 C168,188 202,150 206,106 C210,68 184,28 142,16 C112,8 84,10 62,34" stroke-width="1.5" opacity="0.6"/>
+            </svg>
+          </div>
+          <div class="promo-r-item" data-card="rx">
+            <img src="cards/rx.png" alt="Рецепт врача" onerror="this.style.display='none'">
+            <svg class="promo-card-ring" viewBox="0 0 220 220" preserveAspectRatio="none" fill="none" stroke="#2C2C2E" stroke-linecap="round">
+              <path pathLength="1000" d="M62,34 C24,52 8,92 20,130 C34,172 78,200 124,194 C168,188 202,150 206,106 C210,68 184,28 142,16 C112,8 84,10 62,34" stroke-width="1.5" opacity="0.6"/>
+            </svg>
+          </div>
+          <div class="promo-r-item" data-card="pills">
+            <img src="cards/pills.png" alt="Лекарства" onerror="this.style.display='none'">
+            <svg class="promo-card-ring" viewBox="0 0 220 220" preserveAspectRatio="none" fill="none" stroke="#2C2C2E" stroke-linecap="round">
+              <path pathLength="1000" d="M62,34 C24,52 8,92 20,130 C34,172 78,200 124,194 C168,188 202,150 206,106 C210,68 184,28 142,16 C112,8 84,10 62,34" stroke-width="1.5" opacity="0.6"/>
+            </svg>
+          </div>
+          <div class="promo-r-item" data-card="bloodbag">
+            <img src="cards/syringe.png" alt="История анализов" onerror="this.style.display='none'">
+            <svg class="promo-card-ring" viewBox="0 0 220 220" preserveAspectRatio="none" fill="none" stroke="#2C2C2E" stroke-linecap="round">
+              <path pathLength="1000" d="M62,34 C24,52 8,92 20,130 C34,172 78,200 124,194 C168,188 202,150 206,106 C210,68 184,28 142,16 C112,8 84,10 62,34" stroke-width="1.5" opacity="0.6"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="promo-quote">
+          <p class="promo-quote-tag">ПОНЯТНОСТЬ И ТОЧНОСТЬ</p>
+          <p class="promo-quote-text promo-meta-fade" id="rouletteQuoteText">«Me распознаёт снимки МРТ и КТ и сохраняет заключение в понятном разделе».</p>
+          <p class="promo-quote-author">— Довольный пользователь</p>
+          <a class="promo-quote-cta" id="rouletteCta" href="https://t.me/me_abouthealth_bot?startapp=health" target="_blank" rel="noopener">Открыть в Me →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="promo-view promo-qa" data-view="qa">
+    <h2>Спросили Me</h2>
+    <div class="card promo-qa-card">
+      <p class="promo-qa-q">«В анализе написано «лейкоциты 9.8», это плохо?»</p>
+      <p class="promo-qa-a">Лейкоциты — клетки-защитники, борются с инфекцией. Норма примерно 4–9. Чуть выше — часто просто след недавней простуды, даже если вы уже здоровы. Не повод для паники, но если совпало с жалобами — покажите анализ врачу.</p>
+    </div>
+    <div class="card promo-qa-card">
+      <p class="promo-qa-q">«Ферритин понижен, а гемоглобин в норме — как так?»</p>
+      <p class="promo-qa-a">Гемоглобин — это железо, которое уже работает. Ферритин — запас железа «на складе». Склад может опустеть раньше, чем это отразится на работающем железе — ранний сигнал, что запасы на исходе.</p>
+    </div>
+    <div class="card promo-qa-card">
+      <p class="promo-qa-q">«Ребёнку 3 года, в анализе мочи лейкоциты чуть выше нормы — это инфекция?»</p>
+      <p class="promo-qa-a">Не обязательно. У маленьких детей частая причина — как собрали баночку. Если ребёнка ничего не беспокоит, часто достаточно пересдать анализ правильно.</p>
+    </div>
+    <div class="card promo-qa-card">
+      <p class="promo-qa-q">«Что значит «СОЭ 22» после того, как я переболела ОРВИ?»</p>
+      <p class="promo-qa-a">СОЭ может оставаться повышенным ещё 1-2 недели ПОСЛЕ выздоровления. Если недавно болели и жалоб сейчас нет — это, скорее всего, просто эхо болезни.</p>
+    </div>
+    <p class="promo-qa-more">Хотите разобрать свой анализ, а не общий пример? <a href="https://t.me/me_abouthealth_bot">Откройте Me в Telegram</a>.</p>
+
+    <footer class="promo-footer">
+      <a href="../privacy.html">Конфиденциальность</a>
+      <a href="../terms.html">Условия</a>
+      <a href="../">В приложение</a>
+    </footer>
+  </div>
+</section>
+
+<section class="promo-about promo-reveal" id="promoAbout">
+  <h2 class="promo-section-title promo-reveal-item">О ПРОЕКТЕ</h2>
+  <div class="promo-about-grid">
+    <p class="promo-about-manifesto promo-reveal-item">Me переводит язык медицины на язык человека. Мы верим, что понимание своего здоровья не должно требовать медицинского образования — только один взгляд на телефон.</p>
+    <div class="promo-about-cards">
+      <div class="promo-about-card promo-reveal-item">
+        <p class="promo-about-card-title">ИИ-Анализ</p>
+        <p class="promo-about-card-text">Автоматический разбор сложных медицинских анализов.</p>
+      </div>
+      <div class="promo-about-card promo-reveal-item">
+        <p class="promo-about-card-title">Фокус на пациенте</p>
+        <p class="promo-about-card-text">Перевод врачебных терминов на понятный человеку язык.</p>
+      </div>
+      <div class="promo-about-card promo-reveal-item">
+        <p class="promo-about-card-title">Приватность данных</p>
+        <p class="promo-about-card-text">Полная конфиденциальность и шифрование данных.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="promo-goals promo-reveal" id="promoGoals">
+  <h2 class="promo-section-title promo-reveal-item">НАШИ ЦЕЛИ</h2>
+  <div class="promo-goals-grid">
+    <div class="promo-goal promo-reveal-item">
+      <span class="promo-goal-num">01</span>
+      <p class="promo-goal-title">Доступность</p>
+      <p class="promo-goal-text">Сделать расшифровку медицинских данных доступной каждому за 5 секунд.</p>
+    </div>
+    <div class="promo-goal promo-reveal-item">
+      <span class="promo-goal-num">02</span>
+      <p class="promo-goal-title">Точность</p>
+      <p class="promo-goal-text">Исключить ошибки самодиагностики в поисковике.</p>
+    </div>
+    <div class="promo-goal promo-reveal-item">
+      <span class="promo-goal-num">03</span>
+      <p class="promo-goal-title">Экосистема</p>
+      <p class="promo-goal-text">Объединить анализы, рецепты и историю здоровья в одном интерфейсе.</p>
+    </div>
+  </div>
+</section>
+
+<script src="promo.js"></script>
+</body></html>
