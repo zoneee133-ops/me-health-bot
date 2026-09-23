@@ -270,6 +270,40 @@ img{max-width:100%;display:block}
   .promo-quote{left:50%;right:auto;transform:translateX(-50%);bottom:4vh;max-width:86vw;text-align:center}
 }
 
+/* ---- phone: explicit widths everywhere (abs-positioned + max-width alone
+   doesn't reliably clamp flex children — was overflowing past the screen
+   edge), plus a background card under the quote so it stays legible
+   whatever roulette item happens to sit behind it at that scroll point. */
+@media (max-width:640px){
+  .promo-nav{flex-wrap:wrap;row-gap:8px}
+  .promo-nav-links{flex-wrap:wrap;gap:12px 18px}
+
+  .promo-meta{
+    left:16px;
+    right:16px;
+    width:auto;
+    max-width:none;
+  }
+  .promo-meta-title{font-size:clamp(30px,11vw,44px);word-break:break-word}
+  .promo-meta-row{max-width:none;font-size:12px}
+
+  .promo-r-item{width:66vw}
+
+  .promo-quote{
+    left:16px;
+    right:16px;
+    bottom:3vh;
+    max-width:none;
+    transform:none;
+    text-align:center;
+    background:rgba(246,246,246,.94);
+    padding:14px 16px;
+    border-radius:18px;
+    box-shadow:0 8px 24px -12px rgba(0,0,0,.2);
+  }
+  .promo-quote-text{font-size:13px}
+}
+
 /* ============================================================
    Staggered reveal on scroll (IntersectionObserver adds
    .is-visible to the .promo-reveal ancestor; children fade+rise
@@ -386,6 +420,7 @@ img{max-width:100%;display:block}
   .promo-about-grid{grid-template-columns:1fr;gap:36px}
   .promo-goals-grid{grid-template-columns:1fr;gap:28px}
   .promo-about,.promo-goals{padding-left:20px;padding-right:20px}
+  .promo-goals{padding-bottom:100px} /* clears the fixed social dock */
 }
 
 /* ============================================================
