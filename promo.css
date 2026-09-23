@@ -270,30 +270,60 @@ img{max-width:100%;display:block}
   .promo-quote{left:50%;right:auto;transform:translateX(-50%);bottom:4vh;max-width:86vw;text-align:center}
 }
 
-/* ---- phone: explicit widths everywhere (abs-positioned + max-width alone
-   doesn't reliably clamp flex children — was overflowing past the screen
-   edge), plus a background card under the quote so it stays legible
-   whatever roulette item happens to sit behind it at that scroll point. */
-@media (max-width:640px){
-  .promo-roulette-pin{height:220vh} /* 500vh scroll wall felt broken on phones */
+/* ---- phone (<=768px): scroll-jacked pin/roulette abandoned entirely —
+   too much "мусор" moving under the fingers on a small screen. Instead a
+   plain vertical stack: title+meta, one centered object, quote, buttons. */
+@media (max-width:768px){
   .promo-nav{flex-wrap:wrap;row-gap:8px}
   .promo-nav-links{flex-wrap:wrap;gap:12px 18px}
 
-  .promo-meta{
-    left:16px;
-    right:16px;
-    width:auto;
-    max-width:none;
+  .promo-roulette-pin{height:auto}
+  .promo-roulette-stage{
+    position:static;
+    height:auto;
+    padding:8px 20px 40px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
   }
-  .promo-meta-title{font-size:clamp(26px,9vw,40px);word-break:normal;overflow-wrap:normal}
-  .promo-meta-row{max-width:none;font-size:12px}
 
-  .promo-r-item{width:66vw}
+  .promo-meta{
+    position:static;
+    width:100%;
+    max-width:none;
+    text-align:center;
+  }
+  .promo-meta-title{
+    font-size:clamp(2rem,7vw,2.8rem);
+    word-break:keep-all;
+    overflow-wrap:normal;
+    hyphens:none;
+  }
+  .promo-meta-row{max-width:320px;margin:0 auto;font-size:12px}
+
+  /* only the active object stays on screen — side items are pure clutter
+     on a narrow viewport, so they're removed rather than just dimmed */
+  .promo-roulette-track{
+    position:relative;
+    width:100%;
+    height:280px;
+    margin-top:8px;
+  }
+  .promo-r-item{display:none}
+  .promo-r-item.is-active{
+    display:block;
+    width:min(70vw,300px);
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%) !important;
+    opacity:1 !important;
+    filter:none !important;
+  }
 
   .promo-quote{
-    left:16px;
-    right:16px;
-    bottom:3vh;
+    position:static;
+    margin-top:24px;
     max-width:none;
     transform:none;
     text-align:center;
@@ -303,6 +333,15 @@ img{max-width:100%;display:block}
     box-shadow:0 8px 24px -12px rgba(0,0,0,.2);
   }
   .promo-quote-text{font-size:13px}
+
+  .promo-social-dock{
+    position:static;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    margin-top:20px;
+  }
 }
 
 /* ============================================================
