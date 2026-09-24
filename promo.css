@@ -526,3 +526,9 @@ img{max-width:100%;display:block}
   border-radius:999px;
   box-shadow:0 6px 16px -12px rgba(33,40,66,.3);
 }
+
+/* постоянный подвал с юр. ссылками (виден на главном экране, не только во вкладке «Спросили Me») */
+.promo-sitefooter{padding:28px 32px 120px;text-align:center;color:var(--ink2);font-size:12.5px;line-height:1.6}
+.promo-sitefooter p{margin:0 auto 10px;max-width:560px}
+.promo-sitefooter nav{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px}
+.promo-sitefooter a{color:var(--ink2)}
